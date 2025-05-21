@@ -104,4 +104,4 @@ Use menu option `1) Installation → 2) Uninstall Xray` to:
 > Ensure you fully understand its effects before deploying on production routers.
 
 Test on a secondary device or virtual instance if unsure.
-The scripts are fully compatible and tested on Debian 11.
+The scripts are fully compatible and tested on Keenetic Giga (with opkg and BusyBox sh) and Debian 11.
