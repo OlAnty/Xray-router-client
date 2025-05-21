@@ -1,4 +1,11 @@
 
+```yaml
+__  ______      _ __   __  ____   ___  _   _ _____ _____ ____     ____ _     ___ _____ _   _ _____ 
+ \ \/ /  _ \    / \\ \ / / |  _ \ / _ \| | | |_   _| ____|  _ \   / ___| |   |_ _| ____| \ | |_   _|
+  \  /| |_) |  / _ \\ V /  | |_) | | | | | | | | | |  _| | |_) | | |   | |    | ||  _| |  \| | | |  
+  /  \|  _ <  / ___ \| |   |  _ <| |_| | |_| | | | | |___|  _ <  | |___| |___ | || |___| |\  | | |  
+ /_/\_\_| \_\/_/   \_\_|   |_| \_\\___/ \___/  |_| |_____|_| \_\  \____|_____|___|_____|_| \_| |_|
+```                                                                     
 # Xray VLESS Router Client (Entware/OpenWRT)
 
 A one-stop shell script toolkit to install, configure, and manage a VLESS proxy client on routers running Entware (like OpenWRT).
