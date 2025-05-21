@@ -123,6 +123,12 @@ install_menu() {
       $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
       $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
 
+      # Delete all PREROUTING rules that send specific IPs to XRAY_REDIRECT
+      $SUDO iptables-save -t nat | grep '^-A PREROUTING -s .* -j XRAY_REDIRECT' | while read -r rule; do
+        delete_rule=$(echo "$rule" | sed 's/^-A /-D /')
+        $SUDO iptables -t nat $delete_rule 2>/dev/null
+      done
+
       printf "${GREEN}✅ Uninstallation complete.${NC}\n"
       pause
       ;;
@@ -300,6 +306,12 @@ manage_prerouting() {
       # Interface-specific PREROUTING rules
       $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p tcp -j XRAY_REDIRECT 2>/dev/null
       $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p udp -j XRAY_REDIRECT 2>/dev/null
+
+      # Delete all PREROUTING rules that send specific IPs to XRAY_REDIRECT
+      $SUDO iptables-save -t nat | grep '^-A PREROUTING -s .* -j XRAY_REDIRECT' | while read -r rule; do
+        delete_rule=$(echo "$rule" | sed 's/^-A /-D /')
+        $SUDO iptables -t nat $delete_rule 2>/dev/null
+      done
       printf "${GREEN}All PREROUTING rules related to XRAY_REDIRECT removed.${NC}\n"
       ;;
     3)
