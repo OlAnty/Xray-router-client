@@ -1,14 +1,12 @@
 
 # Xray VLESS Router Client (Entware/OpenWRT)
 
-A **one-stop shell script toolkit** to install, configure, and manage a VLESS proxy client on routers running Entware (like OpenWRT).
+A one-stop shell script toolkit to install, configure, and manage a VLESS proxy client on routers running Entware (like OpenWRT).
 
-## Features
-
-- The configuration can proxy:
+The configuration can proxy:
   - **All traffic** from the router to your VPN server
-  - **Specific domains** like `youtube.com`, `netflix.com`, etc.
-  - **Specific devices** on your LAN (e.g., Smart TVs, consoles) by IP
+  - **Traffic to specific domains** like `youtube.com`, `netflix.com`, etc.
+  - **Traffic from specific devices** on your LAN (e.g., Smart TVs, consoles) by IP
 
 ## Requirements
 
