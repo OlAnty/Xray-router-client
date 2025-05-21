@@ -129,7 +129,134 @@ install_menu() {
   esac
 }
 
-check_vless_config() {
+manage_config() {
+  while true; do
+    printf "${YELLOW}\nManage VLESS Configuration:${NC}\n"
+    printf "1) Regenerate config\n"
+    printf "2) Edit routing rules\n"
+    printf "3) Show current config\n"
+    printf "0) Back\n"
+    printf "Choose an option: "
+    read confopt
+    case "$confopt" in
+      1) sh "$SCRIPT_DIR/vless_config.sh" ;;
+      2) edit_routing_rules ;;
+      3) show_vless_config ;;
+      0) return ;;
+      *) printf "${RED}Invalid option.${NC}\n" ;;
+    esac
+  done
+}
+
+edit_routing_rules() {
+  if [ ! -f "$CONFIG_FILE" ]; then
+    printf "${RED}Config not found. Please generate it first.${NC}\n"
+    pause
+    return
+  fi
+
+  printf "${CYAN}\nRouting Rule Editor:${NC}\n"
+  printf "1) Route all traffic\n"
+  printf "2) Edit specific domains\n"
+  printf "0) Back\n"
+  read routeopt
+  case "$routeopt" in
+    1)
+      printf "${YELLOW}This will overwrite all domain-based rules and route ALL traffic through the VPN.${NC}\n"
+      printf "Type '${CYAN}yes${NC}' to proceed: "
+      read confirm
+      if [ "$confirm" != "yes" ]; then
+        printf "${CYAN}Action cancelled. No changes were made.${NC}\n"
+        pause
+        return
+      fi
+
+      awk '
+      BEGIN { skip=0; depth=0 }
+      /"rules": \[/ {
+        print "    \"rules\": [\n      {\n        \"type\": \"field\",\n        \"ip\": [\"0.0.0.0/0\", \"::/0\"],\n        \"outboundTag\": \"vless-out\"\n      }\n    ]";
+        skip=1
+        depth=1
+        next
+      }
+      skip {
+        depth += gsub(/\[/, "[")
+        depth -= gsub(/\]/, "]")
+        if (depth <= 0) {
+          skip=0
+        }
+        next
+      }
+      { print }
+      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
+      printf "${GREEN}Routing changed: all traffic will go through the VPN.${NC}\n"
+      ;;
+    2)
+      printf "${YELLOW}This will replace all existing routing rules with the new domain list.${NC}\n"
+      printf "Type '${CYAN}yes${NC}' to proceed: "
+      read confirm
+      if [ "$confirm" != "yes" ]; then
+        printf "${CYAN}Action cancelled. No changes were made.${NC}\n"
+        pause
+        return
+      fi
+
+      current_domains=$(grep -o '"domain:[^"]*"' "$CONFIG_FILE" | cut -d: -f2 | tr -d '"' | sort -u)
+      if [ -n "$current_domains" ]; then
+        printf "${GREEN}Current domains routed via VPN:${NC}\n"
+        echo "$current_domains" | sed 's/^/ - /'
+      else
+        printf "${YELLOW}No domains found. Starting fresh.${NC}\n"
+      fi
+
+      printf "\nEnter new comma-separated domains (e.g., youtube.com,instagram.com): "
+      read new_domains
+
+      CLEAN_DOMAINS=""
+      IFS=","
+      for domain in $new_domains; do
+        domain=$(echo "$domain" | sed 's/^ *//;s/ *$//')
+        CLEAN_DOMAINS="$CLEAN_DOMAINS\n          \"domain:$domain\",\n          \"domain:www.$domain\","
+      done
+      unset IFS
+
+      CLEAN_DOMAINS=$(echo "$CLEAN_DOMAINS" | sed '$ s/,$//')
+
+      awk -v rules="$CLEAN_DOMAINS" '
+      BEGIN { skip=0; depth=0 }
+      /"rules": \[/ {
+        print "    \"rules\": [\n      {\n        \"type\": \"field\",\n        \"domain\": [" rules "\n        ],\n        \"outboundTag\": \"vless-out\"\n      },\n      {\n        \"type\": \"field\",\n        \"network\": \"tcp,udp\",\n        \"outboundTag\": \"direct\"\n      }\n    ]";
+        skip=1
+        depth=1
+        next
+      }
+      skip {
+        # Track depth of brackets to detect end of rules block
+        depth += gsub(/\[/, "[")
+        depth -= gsub(/\]/, "]")
+        if (depth <= 0) {
+          skip=0
+        }
+        next
+      }
+      { print }
+      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
+
+      printf "${GREEN}Domain routing updated successfully.${NC}\n"
+      ;;
+    0)
+      return
+      ;;
+    *)
+      printf "${RED}Invalid option.${NC}\n"
+      ;;
+  esac
+  pause
+}
+
+show_vless_config() {
   if [ -f "$CONFIG_FILE" ]; then
     printf "${GREEN}VLESS config:${NC} $CONFIG_FILE\n"
     if command -v less >/dev/null 2>&1; then
@@ -398,7 +525,7 @@ main_menu() {
   header
   printf "1) Installation\n"
   printf "2) Show status\n"
-  printf "3) Check VLESS config\n"
+  printf "3) Manage VLESS config\n"
   printf "4) Manage PREROUTING rules\n"
   printf "5) Manage Xray\n"
   printf "6) Manage Watchdog\n"
@@ -417,7 +544,7 @@ while true; do
   case "$choice" in
     1) install_menu ;;
     2) status_report ;;
-    3) check_vless_config ;;
+    3) manage_config ;;
     4) manage_prerouting ;;
     5) manage_xray ;;
     6) manage_watchdog ;;
