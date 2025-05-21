@@ -95,7 +95,7 @@ Use menu option `1) Installation → 2) Uninstall Xray` to:
 | vless_config.sh         | Builds VLESS config                    |
 | routes_script.sh        | Adds PREROUTING firewall rules         |
 | client_launcher.sh      | Creates init.d Xray launcher           |
-| log_monitoring.sh       | Adds log rotation + watchdog           |
+| log_monitoring.sh       | Adds log + watchdog                    |
 | connectivity_test.sh    | Tests actual proxy traffic             |
 
 ## Disclaimer
