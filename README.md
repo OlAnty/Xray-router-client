@@ -29,10 +29,10 @@ Start the Xray admin.
 ```sh
 sudo sh xray-proxy-admin.sh
 ```
-On first run, this will offer to install itself as `xray-proxy-admin` globally.
+On first run, this will install itself as `xray-proxy-admin` globally.
 Follow the menu to install the proxy client.
 
-If it fails to install itself as `xray-proxy-admin` globally, run `install_all.sh`
+If it fails to install itself as `xray-proxy-admin`, run `install_all.sh`
 
 ```sh
 sudo sh install_all.sh
