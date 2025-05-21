@@ -7,7 +7,8 @@ ROUTES_SCRIPT="/opt/etc/init.d/S99xray-routes"
 WATCHDOG_SCRIPT="/opt/etc/init.d/S99xray-watchdog"
 ACCESS_LOG="/opt/var/log/xray-access.log"
 ERROR_LOG="/opt/var/log/xray-error.log"
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 # Colors
 GREEN="\033[0;32m"
@@ -39,18 +40,19 @@ ensure_admin_in_path() {
   fi
 
   TARGET="$TARGET_DIR/xray-proxy-admin"
+  ORIGIN="$(realpath "$0" 2>/dev/null || readlink -f "$0")"
 
   # Avoid overwrite if identical
-  if [ -f "$TARGET" ] && cmp -s "$0" "$TARGET"; then
+  if [ -L "$TARGET" ] && [ "$(readlink "$TARGET")" = "$ORIGIN" ]; then
     return
   fi
 
   if [ -w "$TARGET_DIR" ]; then
-    cp "$0" "$TARGET"
-    chmod +x "$TARGET"
-    printf "${GREEN}Installed 'xray-proxy-admin' to $TARGET_DIR. You can now run it from anywhere.${NC}\n"
+    ln -sf "$ORIGIN" "$TARGET"
+    chmod +x "$ORIGIN"
+    printf "${GREEN}Installed 'xray-proxy-admin' as a symlink to $ORIGIN. You can now run it from anywhere.${NC}\n"
   else
-    printf "${RED}Failed to add 'xray-proxy-admin' to PATH, cannot write to $TARGET_DIR. Please install manually to a directory in your PATH.${NC}\n"
+    printf "${RED}Failed to create symlink to 'xray-proxy-admin'. Cannot write to $TARGET_DIR.${NC}\n"
   fi
 
   pause
