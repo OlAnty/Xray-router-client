@@ -35,13 +35,22 @@ $SUDO iptables -t nat -C OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null || \
 $SUDO iptables -t nat -I OUTPUT -p tcp --dport 222 -j RETURN
 
 # Detect host machine IP (for test on Debian)
-LOCAL_IP=$(hostname -I | awk '{print $1}')
+if command -v ip >/dev/null 2>&1; then
+  LOCAL_IP=$(ip addr show | awk '/inet / && $2 !~ /^127/ {split($2,a,"/"); print a[1]; exit}')
+else
+  LOCAL_IP=$(ifconfig | awk '/inet addr:/{print substr($2,6); exit}')
+fi
 
 $SUDO iptables -t nat -C XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null || \
 $SUDO iptables -t nat -A XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN
 
 # Add OUTPUT redirect — only exclude Xray if its UID is different from root
-XRAY_UID=$(ps -o uid= -p "$(pgrep -f '/opt/sbin/xray')" | tr -d ' ')
+XRAY_PID=$(pgrep -f '/opt/sbin/xray')
+if [ -n "$XRAY_PID" ]; then
+  XRAY_UID=$(awk '/Uid:/ {print $2}' /proc/"$XRAY_PID"/status)
+else
+  XRAY_UID=0
+fi
 XRAY_USER=$(id -nu "$XRAY_UID" 2>/dev/null || echo "unknown")
 CALLER_UID=$(id -u)
 if [ -z "$XRAY_UID" ]; then

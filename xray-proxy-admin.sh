@@ -470,7 +470,11 @@ run_connectivity_test() {
 
   if [ "$(uname)" = "Linux" ] && [ "$(id -u)" = "0" ]; then
     echo "Available users:"
-    cut -d: -f1 /etc/passwd | grep -vE '^(root|nobody|daemon|bin)$' | nl
+    i=1
+    cut -d: -f1 /etc/passwd | grep -vE '^(root|nobody|daemon|bin)$' | while read user; do
+      printf "  %2d) %s\n" "$i" "$user"
+      i=$((i + 1))
+    done
     printf "${CYAN}Enter a USER NAME to run test as (or press Enter to use root):${NC}\n "
     read user_choice
 
@@ -528,8 +532,8 @@ detect_lan_interface() {
 
 detect_xray_uid() {
   XRAY_PID=$(pgrep -f '/opt/sbin/xray')
-  if [ -n "$XRAY_PID" ]; then
-    ps -o uid= -p "$XRAY_PID" | tr -d ' '
+  if [ -n "$XRAY_PID" ] && [ -f "/proc/$XRAY_PID/status" ]; then
+    awk '/Uid:/ {print $2}' /proc/"$XRAY_PID"/status
   else
     return 1
   fi
