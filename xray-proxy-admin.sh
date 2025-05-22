@@ -508,23 +508,29 @@ show_logs() {
 }
 
 detect_lan_interface() {
-  if ! command -v ip >/dev/null; then
-    printf "${YELLOW}'ip' command not found. Required for LAN detection.${NC}\n" >&2
-    echo "br0"
-    return
+  if command -v ifconfig >/dev/null 2>&1; then
+    IFACES=$(ifconfig | grep '^[a-zA-Z0-9]' | awk '{print $1}')
+    for iface in $IFACES; do
+      case "$iface" in
+        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
+      esac
+      if ifconfig "$iface" | grep -qE 'inet addr:(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
+        echo "$iface"
+        return
+      fi
+    done
+  elif command -v ip >/dev/null 2>&1; then
+    IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
+    for iface in $IFACES; do
+      case "$iface" in
+        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
+      esac
+      if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
+        echo "$iface"
+        return
+      fi
+    done
   fi
-
-  IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
-
-  for iface in $IFACES; do
-    case "$iface" in
-      lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
-    esac
-    if ip a show dev "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
-      echo "$iface"
-      return
-    fi
-  done
 
   printf "${YELLOW}No private LAN interface found. Falling back to br0.${NC}\n" >&2
   echo "br0"
