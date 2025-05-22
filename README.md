@@ -29,8 +29,7 @@ cd /tmp
 ```
 Download and unpack.
 ```sh
-wget https://github.com/OlAnty/Xray-router-client/archive/refs/heads/main.zip -O xray.zip
-unzip xray.zip
+curl -L https://github.com/OlAnty/Xray-router-client/archive/refs/heads/main.tar.gz | tar -xz
 cd Xray-router-client-main
 ```
 Start the Xray admin.
