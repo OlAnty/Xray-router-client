@@ -294,7 +294,7 @@ manage_prerouting() {
       ;;
     2)
       LAN_IFACE=$(detect_lan_interface)
-
+      echo "LAN interface is $LAN_IFACE"
       $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
       $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
 
@@ -316,7 +316,7 @@ manage_prerouting() {
       ;;
     3)
       echo ""
-      echo "Checking iptables OUTPUT and PREROUTING rules before test..."
+
       echo "--- OUTPUT chain:"
       $SUDO iptables -t nat -L OUTPUT -n --line-numbers | grep -E "XRAY_REDIRECT|RETURN" || echo "(none)"
       echo "Raw rule:"
@@ -516,7 +516,7 @@ detect_lan_interface() {
       esac
       if ifconfig "$iface" | grep -qE 'inet addr:(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
         echo "$iface"
-        return
+        return 0
       fi
     done
   elif command -v ip >/dev/null 2>&1; then
@@ -527,7 +527,7 @@ detect_lan_interface() {
       esac
       if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
         echo "$iface"
-        return
+        return 0
       fi
     done
   fi

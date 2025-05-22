@@ -135,7 +135,7 @@ detect_lan_interface() {
       esac
       if ifconfig "$iface" | grep -qE 'inet addr:(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
         echo "$iface"
-        return
+        return 0
       fi
     done
   elif command -v ip >/dev/null 2>&1; then
@@ -146,7 +146,7 @@ detect_lan_interface() {
       esac
       if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
         echo "$iface"
-        return
+        return 0
       fi
     done
   fi
