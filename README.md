@@ -73,8 +73,8 @@ The script will auto-generate:
 ### Finding related domains
 When routing only specific domains, keep in mind that many services rely on multiple related domains for full functionality — such as video content, images, and APIs.
 For example:
-- **YouTube** may also use: googlevideo.com, ytimg.com, youtubei.googleapis.com, etc.  
-- **Netflix** may also use: nflxvideo.net, nflximg.net, and others.
+- **YouTube** may also use: `googlevideo.com`, `ytimg.com`, `youtubei.googleapis.com`, etc.  
+- **Netflix** may also use: `nflxvideo.net`, `nflximg.net`, and others.
 Add all the domains to ensure full proxy support.
 
 ## Iptables behavior
