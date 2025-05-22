@@ -70,6 +70,13 @@ The script will auto-generate:
 - `/opt/etc/init.d/S99xray-routes` — sets up routing rules
 - `/opt/etc/init.d/S99xray-watchdog` — watchdog to trim log files
 
+### Finding related domains
+When routing only specific domains, keep in mind that many services rely on multiple related domains for full functionality — such as video content, images, and APIs.
+For example:
+- **YouTube** may also use: googlevideo.com, ytimg.com, youtubei.googleapis.com, etc.  
+- **Netflix** may also use: nflxvideo.net, nflximg.net, and others.
+Add all the domains to ensure full proxy support.
+
 ## Iptables behavior
 The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
 
