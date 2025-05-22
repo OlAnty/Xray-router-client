@@ -20,7 +20,7 @@ You can choose what kind of internet traffic goes through your Xray VPN connecti
 - A valid **VLESS configuration** (server IP,UUID, PubKey, short ID, serverName)
 
 > ⚠️ **Warning**  
-> This is not an Xray server configuration. This client is intended to connect to an existing remote Xray server. To know more about Xray server configuration, visit https://github.com/XTLS/Xray-core
+> This is not an Xray VPN server configuration. This client is intended to connect to an existing remote Xray server. To configure Xray VPN server, visit https://github.com/XTLS/Xray-core
 
 ## Install
 Choose a folder to download and unpack the scripts.
