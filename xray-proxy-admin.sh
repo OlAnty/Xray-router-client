@@ -98,12 +98,15 @@ install_menu() {
       fi
       LOCAL_IP=$(hostname -I | awk '{print $1}')
       LAN_IFACE=$(detect_lan_interface)
+      echo "LAN interface used: $LAN_IFACE"
 
+      echo "Removing configuration files..."
       $SUDO pkill -f /opt/sbin/xray
       $SUDO pkill -f "$WATCHDOG_SCRIPT"
       $SUDO rm -f "$CLIENT_SCRIPT" "$WATCHDOG_SCRIPT" "$ROUTES_SCRIPT"
       $SUDO rm -f "$CONFIG_FILE"
 
+      echo "Updating iptables..."
       $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
       $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
 
@@ -294,7 +297,8 @@ manage_prerouting() {
       ;;
     2)
       LAN_IFACE=$(detect_lan_interface)
-      echo "LAN interface is $LAN_IFACE"
+      echo "LAN interface used: $LAN_IFACE"
+      echo "Updating iptables..."
       $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
       $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
 

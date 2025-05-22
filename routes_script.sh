@@ -89,7 +89,7 @@ DEVICE_RULE=""
       IFS="$OLD_IFS"
 
       if [ "$VALID" = true ]; then
-        DEVICE_RULE=$(echo -e "$DEVICE_RULES")
+        DEVICE_RULE=$(printf "%s" "$DEVICE_RULES")
 
         # Remove trailing comma from IP list for JSON
         IP_JSON_LIST=$(echo "$IP_JSON_LIST" | sed 's/,$//')
@@ -156,11 +156,12 @@ detect_lan_interface() {
 }
 
 LAN_IFACE=$(detect_lan_interface)
+echo "LAN interface used: $LAN_IFACE"
 
 # Generate route script
 {
   echo '#!/bin/sh'
-  echo ""
+  echo "Updating iptables..."
   echo "XRAY_PORT=$XRAY_PORT"
   echo ""
   echo "$SUDO iptables -t nat -N XRAY_REDIRECT 2>/dev/null"
