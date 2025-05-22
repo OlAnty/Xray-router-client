@@ -69,7 +69,7 @@ The script will auto-generate:
 The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
 
 - PREROUTING rules for selected IPs or all LAN traffic
-- OUTPUT rules for UID-based redirection
+- OUTPUT rules for UID-based redirection during the connectivity test
 
 If your router is actively used for SSH or other services, you need to manually exclude the Xray UID from iptables redirection to avoid routing loops.
 Add this rule after starting Xray:
