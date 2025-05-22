@@ -7,7 +7,6 @@
                                                                                     
 ```                                                                     
 # Xray VLESS Router Client (Entware/OpenWRT)
-
 A one-stop shell script toolkit to install, configure, and manage a VLESS proxy client on routers running Entware (like OpenWRT).
 
 You can choose what kind of internet traffic goes through your Xray VPN connection:
@@ -16,7 +15,6 @@ You can choose what kind of internet traffic goes through your Xray VPN connecti
 - **Traffic from specific devices** on your network (like a Smart TV or gaming console), while other devices stay on the regular internet
 
 ## Requirements
-
 - Router running **Entware** (e.g., OpenWRT)
 - Comfigured **Xray VPN tunnel** supporting VLESS + Reality
 - A valid **VLESS configuration** (server IP,UUID, PubKey, short ID, serverName)
@@ -24,7 +22,7 @@ You can choose what kind of internet traffic goes through your Xray VPN connecti
 > ⚠️ **Warning**  
 > This is not an Xray server configuration. This client is intended to connect to an existing remote Xray server. To know more about Xray server configuration, visit https://github.com/XTLS/Xray-core
 
-## Usage
+## Install
 Choose a folder to download and unpack the scripts.
 ```sh
 cd /tmp
@@ -49,7 +47,6 @@ sudo sh install_all.sh
 ```
 
 ### Install xray proxy
-
 Use option `1) Installation` from the menu to:
 - Install required packages
 - Prompt you to configure your VPN
@@ -64,8 +61,16 @@ The script will auto-generate:
   - watchdog and log management script
   - init.d client launcher
 
-## Iptables behavior
+### Filesystem overview
+- `/opt/sbin/xray` — main Xray binary
+- `/opt/etc/xray/vless.json` — main configuration file
+- `/opt/var/log/xray-access.log` — access log
+- `/opt/var/log/xray-error.log` — error log
+- `/opt/etc/init.d/S99xray-client` — manages Xray start/stop
+- `/opt/etc/init.d/S99xray-routes` — sets up routing rules
+- `/opt/etc/init.d/S99xray-watchdog` — watchdog to trim log files
 
+## Iptables behavior
 The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
 
 - PREROUTING rules for selected IPs or all LAN traffic
@@ -80,7 +85,6 @@ iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDI
 ```
 
 ## Uninstallation
-
 Use menu option `1) Installation → 2) Uninstall Xray` to:
 
 - Stop all proxy and watchdog processes
@@ -88,7 +92,6 @@ Use menu option `1) Installation → 2) Uninstall Xray` to:
 - Delete init.d scripts and config files
 
 ## Included Files
-
 | Script Name             | Purpose                                |
 |------------------------|----------------------------------------|
 | xray-proxy-admin.sh     | Main admin interface                   |
