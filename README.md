@@ -10,16 +10,19 @@
 
 A one-stop shell script toolkit to install, configure, and manage a VLESS proxy client on routers running Entware (like OpenWRT).
 
-The configuration can proxy:
-  - **All traffic** from the router to your VPN server
-  - **Traffic to specific domains** like `youtube.com`, `netflix.com`, etc.
-  - **Traffic from specific devices** on your LAN (e.g., Smart TVs, consoles) by IP
+You can choose what kind of internet traffic goes through your Xray VPN connection:
+- **All internet traffic** from your router
+- **Traffic to specific websites**, like `youtube.com`, `netflix.com`, etc. — all other sites will use your normal connection
+- **Traffic from specific devices** on your network (like a Smart TV or gaming console), while other devices stay on the regular internet
 
 ## Requirements
 
 - Router running **Entware** (e.g., OpenWRT)
-- A working **VPN server** supporting VLESS + Reality
+- Comfigured **Xray VPN tunnel** supporting VLESS + Reality
 - A valid **VLESS configuration** (server IP,UUID, PubKey, short ID, serverName)
+
+> ⚠️ **Warning**  
+> This is not an Xray server configuration. This client is intended to connect to an existing remote Xray server. To know more about Xray server configuration, visit https://github.com/XTLS/Xray-core
 
 ## Usage
 Choose a folder to download and unpack the scripts.
