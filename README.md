@@ -42,7 +42,7 @@ Follow the menu to install the proxy client.
 If it fails to install itself as `xray-proxy-admin`, run `install_all.sh`
 
 ```sh
-sudo sh install_all.sh
+sh install_all.sh
 ```
 
 ### Install xray proxy
