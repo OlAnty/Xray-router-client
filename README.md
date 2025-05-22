@@ -34,7 +34,7 @@ cd Xray-router-client-main
 ```
 Start the Xray admin.
 ```sh
-sudo sh xray-proxy-admin.sh
+sh xray-proxy-admin.sh
 ```
 On first run, this will install itself as `xray-proxy-admin` globally.
 Follow the menu to install the proxy client.
