@@ -64,14 +64,6 @@ The script will auto-generate:
   - watchdog and log management script
   - init.d client launcher
 
-## Connectivity test
-
-The test is automatically run post-install and can be manually run any time.
-
-- Ensures DNS, HTTPS, and VPN routing are working
-- Automatically avoids redirecting traffic from the same UID to prevent infinite loops
-- Shows routing confirmation from logs
-
 ## Iptables behavior
 
 The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
