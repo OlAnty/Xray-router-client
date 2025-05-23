@@ -15,10 +15,11 @@ else
   SUDO=""
 fi
 
-# Determine if running under Entware / OpenWRT
-IS_ROUTER=false
-if [ -f /etc/opkg.conf ] || grep -q -i 'entware\|openwrt' /etc/*release 2>/dev/null; then
-  IS_ROUTER=true
+# Determine if running NOT under Entware / OpenWRT
+IS_ROUTER=true
+if grep -qi 'debian\|ubuntu\|fedora\|arch\|alpine' /etc/*release 2>/dev/null || \
+   [ -f /etc/debian_version ] || [ -f /etc/redhat-release ]; then
+  IS_ROUTER=false
 fi
 
 CONFIG_FILE="/opt/etc/xray/vless.json"
