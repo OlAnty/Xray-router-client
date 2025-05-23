@@ -378,12 +378,22 @@ manage_watchdog() {
   case "$wopt" in
     1) 
       if [ -f "$WATCHDOG_SCRIPT" ]; then
-        sh "$WATCHDOG_SCRIPT"
+        sh "$WATCHDOG_SCRIPT" &
       else
         printf "${RED}Watchdog script not found at $WATCHDOG_SCRIPT.${NC}\n"
       fi
       ;;
-    2) pkill -f "$WATCHDOG_SCRIPT" && printf "${GREEN}Watchdog stopped.${NC}\n" || printf "${RED}Watchdog not running.${NC}\n" ;;
+    2)
+      PIDS=$(ps | grep '[S]99xray-watchdog' | awk '{print $1}')
+      if [ -n "$PIDS" ]; then
+        for pid in $PIDS; do
+          kill "$pid" 2>/dev/null
+        done
+        printf "${GREEN}Watchdog stopped.${NC}\n"
+      else
+        printf "${RED}Watchdog not running.${NC}\n"
+      fi
+#      pkill -f "$WATCHDOG_SCRIPT" && printf "${GREEN}Watchdog stopped.${NC}\n" || printf "${RED}Watchdog not running.${NC}\n";;
     3) grep -Ev '^#|^$' "$WATCHDOG_SCRIPT" 2>/dev/null || printf "${RED}No config found.${NC}\n" ;;
     0) return ;;
     *) printf "${RED}Invalid option.${NC}\n" ;;

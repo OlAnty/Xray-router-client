@@ -67,7 +67,7 @@ fi
 while true; do
   /opt/etc/init.d/S99xray-loglimit
   sleep 60
-done &
+done
 EOF
 
 # Make both executable
