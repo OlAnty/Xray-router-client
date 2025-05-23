@@ -1,5 +1,9 @@
 #!/bin/sh
 # setup/routes_script.sh
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+. "$(dirname "$SCRIPT_PATH")/utils.sh"
 
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" -ne 0 ]; then
   SUDO="sudo"
@@ -125,43 +129,12 @@ DEVICE_RULE=""
   fi
 fi
 
-# Detect LAN interface
-detect_lan_interface() {
-  if command -v ifconfig >/dev/null 2>&1; then
-    IFACES=$(ifconfig | grep '^[a-zA-Z0-9]' | awk '{print $1}')
-    for iface in $IFACES; do
-      case "$iface" in
-        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
-      esac
-      if ifconfig "$iface" | grep -qE 'inet addr:(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
-        echo "$iface"
-        return 0
-      fi
-    done
-  elif command -v ip >/dev/null 2>&1; then
-    IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
-    for iface in $IFACES; do
-      case "$iface" in
-        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
-      esac
-      if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
-        echo "$iface"
-        return 0
-      fi
-    done
-  fi
-
-  printf "${YELLOW}No private LAN interface found. Falling back to br0.${NC}\n" >&2
-  echo "br0"
-}
-
 LAN_IFACE=$(detect_lan_interface)
-echo "LAN interface used: $LAN_IFACE"
 
 # Generate route script
 {
   echo '#!/bin/sh'
-  echo "Updating iptables..."
+  echo ""
   echo "XRAY_PORT=$XRAY_PORT"
   echo ""
   echo "$SUDO iptables -t nat -N XRAY_REDIRECT 2>/dev/null"

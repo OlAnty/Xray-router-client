@@ -10,6 +10,8 @@ ERROR_LOG="/opt/var/log/xray-error.log"
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
+. "$(dirname "$SCRIPT_PATH")/utils.sh"
+
 # Colors
 GREEN="\033[0;32m"
 RED="\033[0;31m"
@@ -79,16 +81,11 @@ install_menu() {
   case "$instopt" in
     1)
       printf "${YELLOW}Running install_all.sh...${NC}\n"
-      sh "$SCRIPT_DIR/install_all.sh"
+      $SUDO sh "$SCRIPT_DIR/install_all.sh"
       pause
       ;;
     2)
       printf "${RED}Uninstalling Xray and cleaning up...${NC}\n"
-
-      if ! command -v iptables >/dev/null 2>&1; then
-        printf "${RED}'iptables' is required but not found. Please install it first.${NC}\n"
-        exit 1
-      fi
       
       XRAY_UID=$(detect_xray_uid)
       if [ -z "$XRAY_UID" ]; then
@@ -96,41 +93,13 @@ install_menu() {
         pause
         return
       fi
-      LOCAL_IP=$(hostname -I | awk '{print $1}')
-      LAN_IFACE=$(detect_lan_interface)
-      echo "LAN interface used: $LAN_IFACE"
 
-      echo "Removing configuration files..."
-      $SUDO pkill -f /opt/sbin/xray
-      $SUDO pkill -f "$WATCHDOG_SCRIPT"
-      $SUDO rm -f "$CLIENT_SCRIPT" "$WATCHDOG_SCRIPT" "$ROUTES_SCRIPT"
-      $SUDO rm -f "$CONFIG_FILE"
-
-      echo "Updating iptables..."
-      $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
-
-      # General PREROUTING cleanup
-      $SUDO iptables -t nat -D PREROUTING -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -p udp -j XRAY_REDIRECT 2>/dev/null
-
-      # Interface-specific PREROUTING rules
-      $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p udp -j XRAY_REDIRECT 2>/dev/null
-
-      # OUTPUT redirect cleanup
-      $SUDO iptables -t nat -D OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
-      $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
-
-      # Delete all PREROUTING rules that send specific IPs to XRAY_REDIRECT
-      $SUDO iptables-save -t nat | grep '^-A PREROUTING -s .* -j XRAY_REDIRECT' | while read -r rule; do
-        delete_rule=$(echo "$rule" | sed 's/^-A /-D /')
-        $SUDO iptables -t nat $delete_rule 2>/dev/null
-      done
+      # Remove OUTPUT rules
+      remove_output_redirect
+      # Remove PREROUTING rules
+      remove_prerouting_redirect
+      # Cleanup scripts and running processes
+      cleanup_scripts
 
       printf "${GREEN}✅ Uninstallation complete.${NC}\n"
       pause
@@ -285,37 +254,21 @@ show_vless_config() {
 
 manage_prerouting() {
   printf "${YELLOW}PREROUTING management:${NC}\n"
-  printf "1) Add rules\n2) Remove rules\n3) Show current\n0) Back\n"
+  printf "1) Add rules\n2) Remove rules\n3) Show current\n4) Regenerate routes config\n0) Back\n"
   read prerule
   case "$prerule" in
     1) 
       if [ -f "$ROUTES_SCRIPT" ]; then
+        echo "Adding PREROUTING configuration from $ROUTES_SCRIPT..."
         sh "$ROUTES_SCRIPT"
       else
         printf "${RED}Routes script not found at $ROUTES_SCRIPT.${NC}\n"
       fi
       ;;
     2)
-      LAN_IFACE=$(detect_lan_interface)
-      echo "LAN interface used: $LAN_IFACE"
-      echo "Updating iptables..."
-      $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
 
-      # General PREROUTING cleanup
-      $SUDO iptables -t nat -D PREROUTING -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -p udp -j XRAY_REDIRECT 2>/dev/null
+      remove_prerouting_redirect
 
-      # Interface-specific PREROUTING rules
-      $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p udp -j XRAY_REDIRECT 2>/dev/null
-
-      # Delete all PREROUTING rules that send specific IPs to XRAY_REDIRECT
-      $SUDO iptables-save -t nat | grep '^-A PREROUTING -s .* -j XRAY_REDIRECT' | while read -r rule; do
-        delete_rule=$(echo "$rule" | sed 's/^-A /-D /')
-        $SUDO iptables -t nat $delete_rule 2>/dev/null
-      done
       printf "${GREEN}All PREROUTING rules related to XRAY_REDIRECT removed.${NC}\n"
       ;;
     3)
@@ -330,7 +283,13 @@ manage_prerouting() {
       echo "Raw rule:"
       $SUDO iptables-save -t nat | grep --color=auto -E '^-A PREROUTING' | grep XRAY_REDIRECT || echo "(none)"
       ;;
-    0) return ;;
+
+    4)
+      printf "${YELLOW}Running routes_script.sh...${NC}\n"
+      sh "$SCRIPT_DIR/routes_script.sh"
+      pause
+      ;;
+    0) return;;
     *) printf "${RED}Invalid option.${NC}\n" ;;
   esac
   pause
@@ -446,22 +405,44 @@ manage_output_redirect() {
         pause
         return
       fi
-      $SUDO iptables -t nat -C OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null ||
-      $SUDO iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
-      printf "${GREEN}OUTPUT redirect added for UID $XRAY_UID.${NC}\n"
-      ;;
-    2)
-      XRAY_UID=$(detect_xray_uid)
-      if [ -z "$XRAY_UID" ]; then
-        printf "${RED}Failed to detect Xray UID. Is the client installed?${NC}\n"
+      LOCAL_IP=$(detect_local_ip)
+      IS_ROUTER=$(detect_router)
+
+      # check if the chain exists
+      $SUDO iptables -t nat -L XRAY_REDIRECT >/dev/null 2>&1
+      if [ $? -ne 0 ]; then
+        echo "${RED}XRAY_REDIRECT chain is missing. Did you forget to start Xray?${NC}"
         pause
         return
       fi
-      $SUDO iptables -t nat -D OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
-      $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
-      $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
+
+      echo "Adding OUTPUT redirect..."
+
+      # Exclude SSH ports first
+      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN
+
+      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -I OUTPUT -p tcp --dport 222 -j RETURN
+
+      # Exclude local IP from XRAY_REDIRECT
+      $SUDO iptables -t nat -C XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -A XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN
+
+      if [ "$IS_ROUTER" = true ]; then
+        $SUDO iptables -t nat -C OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null || \
+        $SUDO iptables -t nat -A OUTPUT -p tcp -j XRAY_REDIRECT
+        echo "${GREEN}OUTPUT redirected. SSH & local IP excluded.${NC}"
+      else
+        $SUDO iptables -t nat -C OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null || \
+        $SUDO iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
+        echo "${GREEN}OUTPUT redirected for UID $XRAY_UID.  SSH & local IP excluded.${NC}"
+      fi
+      ;;
+    2)
+
+      remove_output_redirect
+
       printf "${GREEN}Redirect removed.${NC}\n"
       ;;
     3) $SUDO iptables -t nat -L OUTPUT ;;
@@ -520,44 +501,6 @@ show_logs() {
     *) printf "${RED}Invalid choice.${NC}\n" ;;
   esac
   pause
-}
-
-detect_lan_interface() {
-  if command -v ifconfig >/dev/null 2>&1; then
-    IFACES=$(ifconfig | grep '^[a-zA-Z0-9]' | awk '{print $1}')
-    for iface in $IFACES; do
-      case "$iface" in
-        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
-      esac
-      if ifconfig "$iface" | grep -qE 'inet addr:(192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
-        echo "$iface"
-        return 0
-      fi
-    done
-  elif command -v ip >/dev/null 2>&1; then
-    IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
-    for iface in $IFACES; do
-      case "$iface" in
-        lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
-      esac
-      if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
-        echo "$iface"
-        return 0
-      fi
-    done
-  fi
-
-  printf "${YELLOW}No private LAN interface found. Falling back to br0.${NC}\n" >&2
-  echo "br0"
-}
-
-detect_xray_uid() {
-  XRAY_PID=$(pgrep -f '/opt/sbin/xray')
-  if [ -n "$XRAY_PID" ] && [ -f "/proc/$XRAY_PID/status" ]; then
-    awk '/Uid:/ {print $2}' /proc/"$XRAY_PID"/status
-  else
-    return 1
-  fi
 }
 
 main_menu() {

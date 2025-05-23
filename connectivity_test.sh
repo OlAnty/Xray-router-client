@@ -1,5 +1,9 @@
 #!/bin/sh
 # setup/connectivity_test.sh
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+. "$(dirname "$SCRIPT_PATH")/utils.sh"
 
 if [ -t 1 ]; then
   RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; NC='\033[0m'
@@ -15,13 +19,6 @@ else
   SUDO=""
 fi
 
-# Determine if running NOT under Entware / OpenWRT
-IS_ROUTER=true
-if grep -qi 'debian\|ubuntu\|fedora\|arch\|alpine' /etc/*release 2>/dev/null || \
-   [ -f /etc/debian_version ] || [ -f /etc/redhat-release ]; then
-  IS_ROUTER=false
-fi
-
 CONFIG_FILE="/opt/etc/xray/vless.json"
 XRAY_LOG="/opt/var/log/xray-error.log"
 
@@ -35,29 +32,20 @@ $SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN
 $SUDO iptables -t nat -C OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null || \
 $SUDO iptables -t nat -I OUTPUT -p tcp --dport 222 -j RETURN
 
-# Detect host machine IP (for test on Debian)
-if command -v ip >/dev/null 2>&1; then
-  LOCAL_IP=$(ip addr show | awk '/inet / && $2 !~ /^127/ {split($2,a,"/"); print a[1]; exit}')
-else
-  LOCAL_IP=$(ifconfig | awk '/inet addr:/{print substr($2,6); exit}')
+XRAY_UID=$(detect_xray_uid)
+if [ -z "$XRAY_UID" ]; then
+  printf "${RED}Failed to detect Xray UID. Is the client running?${NC}\n"
+  exit 1
 fi
+LOCAL_IP=$(detect_local_ip)
+IS_ROUTER=$(detect_router)
 
 $SUDO iptables -t nat -C XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null || \
 $SUDO iptables -t nat -A XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN
 
 # Add OUTPUT redirect — only exclude Xray if its UID is different from root
-XRAY_PID=$(pgrep -f '/opt/sbin/xray')
-if [ -n "$XRAY_PID" ]; then
-  XRAY_UID=$(awk '/Uid:/ {print $2}' /proc/"$XRAY_PID"/status)
-else
-  XRAY_UID=0
-fi
 XRAY_USER=$(id -nu "$XRAY_UID" 2>/dev/null || echo "unknown")
 CALLER_UID=$(id -u)
-if [ -z "$XRAY_UID" ]; then
-  printf "${RED}Failed to detect Xray UID. Is the client running?${NC}\n"
-  exit 1
-fi
 
 if [ "$IS_ROUTER" = true ]; then
   # Detected router-like system — routing all OUTPUT traffic through XRAY_REDIRECT
@@ -166,12 +154,6 @@ fi
 # === CLEANUP ===
 cleanup() {
   echo ""
-  echo "Cleaning up temporary routing rules..."
-
-  $SUDO iptables -t nat -D OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
+  remove_output_redirect
 }
 trap cleanup EXIT
