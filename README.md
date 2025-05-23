@@ -82,8 +82,13 @@ The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
 - OUTPUT rules for UID-based redirection during the connectivity test
 
 If your router is actively used for SSH or other services, you need to manually exclude the Xray UID from iptables redirection to avoid routing loops.
-Add this rule after starting Xray:
+Add these rules after starting Xray:
 
+```sh
+# Avoid interfering with SSH sessions (ports 22, 222)
+iptables -t nat -A OUTPUT -p tcp --dport 22 -j RETURN
+iptables -t nat -A OUTPUT -p tcp --dport 222 -j RETURN
+```
 ```sh
 XRAY_UID=$(ps -o uid= -p "$(pgrep -f '/opt/sbin/xray')" | tr -d ' ')
 iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
