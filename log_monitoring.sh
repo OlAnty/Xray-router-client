@@ -48,7 +48,12 @@ cat <<EOF | $SUDO tee "$WATCHDOG_SCRIPT" > /dev/null
 #!/bin/sh
 
 # Kill existing watchdog processes safely
-EXISTING_PIDS=\$(ps aux | grep '[/]opt/etc/init.d/S99xray-watchdog' | awk '{print \$2}')
+if ps aux >/dev/null 2>&1; then
+  EXISTING_PIDS=$(ps aux | grep '[/]opt/etc/init.d/S99xray-watchdog' | awk '{print $2}')
+else
+  EXISTING_PIDS=$(ps | grep '[S]99xray-watchdog' | awk '{print $1}')
+fi
+
 KILLED=0
 
 for pid in \$EXISTING_PIDS; do
@@ -67,7 +72,10 @@ fi
 while true; do
   /opt/etc/init.d/S99xray-loglimit
   sleep 60
-done
+done &
+
+exit 0
+
 EOF
 
 # Make both executable

@@ -72,10 +72,7 @@ for script in "$CLIENT_FILE" "$ROUTES_FILE" "$WATCHDOG_FILE"; do
       "$CLIENT_FILE")
         "$script" restart
         ;;
-      "$WATCHDOG_FILE")
-        sh "$script" &
-        ;;
-        *)
+      *)
         sh "$script"
         ;;
     esac
