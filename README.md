@@ -61,8 +61,8 @@ The script will auto-generate:
   - init.d client launcher
 
 ### Filesystem overview
-- `/opt/sbin/xray` — main Xray binary
-- `/opt/etc/xray/vless.json` — main configuration file
+- `/opt/sbin/xray` — Xray binary
+- `/opt/etc/xray/vless.json` — configuration file
 - `/opt/var/log/xray-access.log` — access log
 - `/opt/var/log/xray-error.log` — error log
 - `/opt/etc/init.d/S99xray-client` — manages Xray start/stop
