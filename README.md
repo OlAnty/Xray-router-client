@@ -68,6 +68,7 @@ The script will auto-generate:
 - `/opt/etc/init.d/S99xray-client` — manages Xray start/stop
 - `/opt/etc/init.d/S99xray-routes` — sets up routing rules
 - `/opt/etc/init.d/S99xray-watchdog` — watchdog to trim log files
+- `/opt/bin/xray-proxy-admin` — global command to start CLI
 
 ### Finding related domains
 When routing only specific domains, keep in mind that many services rely on multiple related domains for full functionality — such as video content, images, and APIs. Add all the domains to ensure full proxy support.
