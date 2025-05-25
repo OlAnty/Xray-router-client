@@ -27,9 +27,9 @@ $SUDO mkdir -p "$INIT_DIR"
 cat <<EOF | $SUDO tee "$LOG_LIMIT_SCRIPT" >/dev/null
 #!/bin/sh
 
-FILES="\$FILES"
-LOG_DIR="\$LOG_DIR"
-MAX_SIZE=\$MAX_SIZE
+FILES="$FILES"
+LOG_DIR="$LOG_DIR"
+MAX_SIZE=$MAX_SIZE
 
 for FILE in \$FILES; do
   FULL_PATH="\$LOG_DIR/\$FILE"
