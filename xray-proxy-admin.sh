@@ -320,6 +320,13 @@ manage_xray() {
     3)
       if [ -f "$CLIENT_SCRIPT" ]; then
         "$CLIENT_SCRIPT" restart
+        sleep 1
+        remove_prerouting_redirect
+        sleep 1
+        if [ -f "$ROUTES_SCRIPT" ]; then
+          echo "Adding PREROUTING XRAY_REDIRECT rules..."
+          sh "$ROUTES_SCRIPT"
+        fi
       else
         printf "${RED}Client script not found.${NC}\n"
       fi
