@@ -13,12 +13,13 @@ NC="\033[0m"
 
 detect_lan_interface() {
   if command -v ip >/dev/null 2>&1; then
-    IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
+    IFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -v '@')
+
     for iface in $IFACES; do
       case "$iface" in
         lo|*ppp*|*wwan*|*wan*|*usb*) continue ;;
       esac
-      if ip a show "$iface" | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
+      if ip a show "$iface" 2>/dev/null | grep -qE 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))'; then
         echo "$iface"
         return 0
       fi
@@ -37,7 +38,7 @@ detect_lan_interface() {
       fi
     done
   fi
-
+  
   echo "No private LAN interface found. Falling back to br0." >&2
   echo "br0"
 }
