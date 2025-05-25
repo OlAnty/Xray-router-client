@@ -15,7 +15,6 @@ set -e
 LOG_DIR="/opt/var/log"
 INIT_DIR="/opt/etc/init.d"
 LOG_LIMIT_SCRIPT="$INIT_DIR/S99xray-loglimit"
-XRAY_CLEANUP_SCRIPT="$INIT_DIR/cleanup-xray-admin.sh"
 WATCHDOG_SCRIPT="$INIT_DIR/S99xray-watchdog"
 FILES="xray-access.log xray-error.log"
 MAX_SIZE=512000
@@ -44,33 +43,11 @@ for FILE in \$FILES; do
 done
 EOF
 
-# Create cleanup-xray-admin.sh
-cat <<EOF | $SUDO tee "$XRAY_CLEANUP_SCRIPT" >/dev/null
-#!/bin/sh
-SUDO="$SUDO"
-# Kill existing xray-proxy-admin processes safely
-if ps aux >/dev/null 2>&1; then
-  EXISTING_PIDS=\$(ps aux | grep '[/]opt/bin/xray-proxy-admin' | grep -v '^USER' | awk '{print \$2}' | grep '^[0-9]\+$')
-else
-  EXISTING_PIDS=\$(ps | grep '[x]ray-proxy-admin' | awk '{print \$1}' | grep '^[0-9]\+$')
-fi
-
-for pid in \$EXISTING_PIDS; do
-  if [ "\$pid" != "\$\$" ]; then
-    \$SUDO kill "\$pid" 2>/dev/null
-    echo "🧹 Killed orphant xray-proxy-admin PID: $pid"
-  fi
-done
-
-EOF
-
-
 # Create S99xray-watchdog
 cat <<EOF | $SUDO tee "$WATCHDOG_SCRIPT" > /dev/null
 #!/bin/sh
 
 LOG_LIMIT_SCRIPT="$LOG_LIMIT_SCRIPT"
-XRAY_CLEANUP_SCRIPT="$XRAY_CLEANUP_SCRIPT"
 SUDO="$SUDO"
 
 if ps aux >/dev/null 2>&1; then
@@ -87,21 +64,17 @@ for pid in \$EXISTING_PIDS; do
 done
 
 # Background loop to call the log limiter every 60 seconds
-(
   while true; do
     \$LOG_LIMIT_SCRIPT
-    \$XRAY_CLEANUP_SCRIPT
     sleep 60
   done
- ) &
 
 EOF
 
 # Make both executable
-$SUDO chmod +x "$LOG_LIMIT_SCRIPT" "$WATCHDOG_SCRIPT" "$XRAY_CLEANUP_SCRIPT"
+$SUDO chmod +x "$LOG_LIMIT_SCRIPT" "$WATCHDOG_SCRIPT"
 
 echo "✅ Created and configured:"
 echo "$LOG_LIMIT_SCRIPT"
-echo "$XRAY_CLEANUP_SCRIPT"
 echo "$WATCHDOG_SCRIPT"
 echo "––––––––––––––––––––––––––––––––––––––––––––"

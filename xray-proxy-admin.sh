@@ -337,7 +337,7 @@ manage_watchdog() {
   case "$wopt" in
     1) 
       if [ -f "$WATCHDOG_SCRIPT" ]; then
-        sh "$WATCHDOG_SCRIPT"
+        sh "$WATCHDOG_SCRIPT" &
       else
         printf "${RED}Watchdog script not found at $WATCHDOG_SCRIPT.${NC}\n"
       fi
