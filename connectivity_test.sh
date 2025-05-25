@@ -25,6 +25,9 @@ XRAY_LOG="/opt/var/log/xray-error.log"
 # === TEMPORARY REDIRECTION FOR LOCAL TESTING ===
 echo "Temporarily routing the router's own traffic through Xray for test..."
 
+$SUDO iptables -t nat -C OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null || \
+$SUDO iptables -t nat -I OUTPUT -d 127.0.0.1 -j RETURN
+
 # Skip SSH ports to avoid disconnect
 $SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
 $SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN

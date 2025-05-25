@@ -4,6 +4,13 @@ else
   SUDO=""
 fi
 
+# Colors
+GREEN="\033[0;32m"
+RED="\033[0;31m"
+CYAN="\033[0;36m"
+YELLOW="\033[1;33m"
+NC="\033[0m"
+
 detect_lan_interface() {
   if command -v ip >/dev/null 2>&1; then
     IFACES=$(ip link | awk -F: '/^[0-9]+: / {print $2}' | tr -d ' ')
@@ -125,4 +132,5 @@ remove_output_redirect() {
   $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
   $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
   $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
+  $SUDO iptables -t nat -D OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null
 }

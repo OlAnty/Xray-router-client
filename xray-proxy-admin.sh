@@ -439,11 +439,11 @@ manage_output_redirect() {
       if [ "$IS_ROUTER" = true ]; then
         $SUDO iptables -t nat -C OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null || \
         $SUDO iptables -t nat -A OUTPUT -p tcp -j XRAY_REDIRECT
-        echo "${GREEN}OUTPUT redirected. SSH & local IP excluded.${NC}"
+        printf "${GREEN}OUTPUT redirected. SSH & local IP excluded.${NC}"
       else
         $SUDO iptables -t nat -C OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null || \
         $SUDO iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
-        echo "${GREEN}OUTPUT redirected for UID $XRAY_UID.  SSH & local IP excluded.${NC}"
+        printf "${GREEN}OUTPUT redirected for UID $XRAY_UID.  SSH & local IP excluded.${NC}"
       fi
       ;;
     2)
