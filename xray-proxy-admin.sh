@@ -343,10 +343,17 @@ manage_watchdog() {
       fi
       ;;
     2)
-      PIDS=$(ps | grep '[S]99xray-watchdog' | awk '{print $1}')
+      if ps aux >/dev/null 2>&1; then
+        PIDS=$(ps aux | grep '[/]opt/etc/init.d/S99xray-watchdog' | grep -v grep | awk '{print $2}' | grep '^[0-9]\+$')
+      else
+        PIDS=$(ps | grep '[S]99xray-watchdog' | grep -v grep | awk '{print $1}' | grep '^[0-9]\+$')
+      fi
+
       if [ -n "$PIDS" ]; then
         for pid in $PIDS; do
-          kill "$pid" 2>/dev/null
+          if [ "$pid" != "$$" ]; then
+            kill "$pid" 2>/dev/null && echo "🛑 Killed watchdog PID: $pid"
+          fi
         done
         printf "${GREEN}Watchdog stopped.${NC}\n"
       else
