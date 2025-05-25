@@ -131,7 +131,7 @@ remove_output_redirect() {
   $SUDO iptables -t nat -D OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null
   $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
   $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -C OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null
+  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null
   $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
   $SUDO iptables -t nat -D OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null
 }
