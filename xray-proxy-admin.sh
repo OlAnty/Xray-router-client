@@ -424,6 +424,8 @@ manage_output_redirect() {
       fi
 
       echo "Adding OUTPUT redirect..."
+      $SUDO iptables -t nat -C OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -I OUTPUT -d 127.0.0.1 -j RETURN
 
       # Exclude SSH ports first
       $SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
