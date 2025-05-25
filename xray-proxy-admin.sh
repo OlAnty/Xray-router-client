@@ -427,6 +427,10 @@ manage_output_redirect() {
       $SUDO iptables -t nat -C OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null || \
       $SUDO iptables -t nat -I OUTPUT -d 127.0.0.1 -j RETURN
 
+      # Skip dokodemo-door port
+      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -A OUTPUT -p tcp --dport 1081 -j RETURN
+
       # Exclude SSH ports first
       $SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
       $SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN
