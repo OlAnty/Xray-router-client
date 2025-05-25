@@ -46,9 +46,9 @@ start() {
 stop() {
   echo "Trying to stop Xray client..."
   if ps aux >/dev/null 2>&1; then
-    XRAY_PIDS=$(ps aux | grep '[o]pt/sbin/xray' | grep -v 'watchdog' | awk '{print $2}')
+    XRAY_PIDS=\$(ps aux | grep '[o]pt/sbin/xray' | grep -v 'watchdog' | awk '{print \$2}')
   else
-    XRAY_PIDS=$(ps | grep '[x]ray' | grep -v 'watchdog' | awk '{print $1}')
+    XRAY_PIDS=\$(ps | grep '[x]ray' | grep -v 'watchdog' | awk '{print \$1}')
   fi
 
   for PID in $XRAY_PIDS; do
