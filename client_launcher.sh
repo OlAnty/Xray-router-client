@@ -56,9 +56,9 @@ stop() {
     XRAY_PIDS=\$(ps | grep '[x]ray' | grep -v 'watchdog' | awk '{print \$1}')
   fi
 
-  if [ -n "$XRAY_PIDS" ]; then
-    for PID in $XRAY_PIDS; do
-      [ "$PID" != "$$" ] && $SUDO kill "$PID" 2>/dev/null && echo "🔻 Killed xray process: $PID"
+  if [ -n "\$XRAY_PIDS" ]; then
+    for PID in \$XRAY_PIDS; do
+      [ "\$PID" != "\$\$" ] && \$SUDO kill "\$PID" 2>/dev/null && echo "🔻 Killed xray process: \$PID"
     done
   else
     echo "Xray is not running."
