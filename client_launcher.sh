@@ -37,14 +37,15 @@ XRAY_BIN="/opt/sbin/xray"
 start() {
   echo "Starting Xray client..."
   if ps aux >/dev/null 2>&1; then
-  XRAY_PIDS=\$(ps aux | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$2}')
-else
-  XRAY_PIDS=\$(ps | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$1}')
-fi
-if [ -n "$XRAY_PIDS" ]; then
-  echo "⚠️ Xray is already running. Use restart if needed."
-else
-  \$XRAY_BIN -config "\$CONFIG_FILE" &
+    XRAY_PIDS=\$(ps aux | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$2}')
+  else
+    XRAY_PIDS=\$(ps | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$1}')
+  fi
+  if [ -n "$XRAY_PIDS" ]; then
+    echo "⚠️ Xray is already running. Use restart if needed."
+  else
+    \$XRAY_BIN -config "\$CONFIG_FILE" &
+  fi
 
 
 stop() {
@@ -55,12 +56,13 @@ stop() {
     XRAY_PIDS=\$(ps | grep '[x]ray' | grep -v 'watchdog' | awk '{print \$1}')
   fi
 
-if [ -n "$XRAY_PIDS" ]; then
-  for PID in $XRAY_PIDS; do
-    [ "$PID" != "$$" ] && $SUDO kill "$PID" 2>/dev/null && echo "🔻 Killed xray process: $PID"
-  done
-else
-  echo "Xray is not running."
+  if [ -n "$XRAY_PIDS" ]; then
+    for PID in $XRAY_PIDS; do
+      [ "$PID" != "$$" ] && $SUDO kill "$PID" 2>/dev/null && echo "🔻 Killed xray process: $PID"
+    done
+  else
+    echo "Xray is not running."
+  fi
 }
 
 
