@@ -21,60 +21,36 @@ fi
 
 CONFIG_FILE="/opt/etc/xray/vless.json"
 XRAY_LOG="/opt/var/log/xray-error.log"
+TARGET_DOMAIN="example.org"
+
+# === GENERAL CONNECTIVITY CHECK ===
+echo ""
+echo "🌐 Testing general internet connectivity via https://www.google.com..."
+GOOGLE_STATUS=$(curl -4 -s -o /dev/null -w "%{http_code}" https://www.google.com)
+if [ "$GOOGLE_STATUS" = "200" ]; then
+  echo "Internet connectivity is working. Google returned 200."
+else
+  printf "${RED}Google test failed. HTTP status: $GOOGLE_STATUS — possible DNS or tunnel issue.${NC}\n"
+fi
 
 # === TEMPORARY REDIRECTION FOR LOCAL TESTING ===
+echo ""
 echo "Temporarily routing the router's own traffic through Xray for test..."
-
-XRAY_UID=$(detect_xray_uid)
-if [ -z "$XRAY_UID" ]; then
-  printf "${RED}Failed to detect Xray UID. Is the client running?${NC}\n"
-  exit 1
-fi
-LOCAL_IP=$(detect_local_ip)
-IS_ROUTER=$(detect_router)
-XRAY_USER=$(id -nu "$XRAY_UID" 2>/dev/null || echo "unknown")
-CALLER_UID=$(id -u)
 
 $SUDO iptables -t nat -N XRAY_REDIRECT 2>/dev/null || true
 
-# Skip localhost
-$SUDO iptables -t nat -C OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null || \
-$SUDO iptables -t nat -I OUTPUT -d 127.0.0.1 -j RETURN
+# Add rules to avoid loop and redirect all tcp to dokodemo-door
+$SUDO iptables -t nat -C OUTPUT -p tcp --dport 443 -j RETURN 2>/dev/null || \
+$SUDO iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
 
-# Skip dokodemo-door port
-$SUDO iptables -t nat -C OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null || \
-$SUDO iptables -t nat -A OUTPUT -p tcp --dport 1081 -j RETURN
+$SUDO iptables -t nat -C OUTPUT -p tcp -j REDIRECT --to-ports 1081 2>/dev/null || \
+$SUDO iptables -t nat -A OUTPUT -p tcp -d $TARGET_DOMAIN -j REDIRECT --to-ports 1081
 
-# Skip SSH ports
-$SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
-$SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN
-$SUDO iptables -t nat -C OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null || \
-$SUDO iptables -t nat -I OUTPUT -p tcp --dport 222 -j RETURN
-
-# Return local IP from redirection
-$SUDO iptables -t nat -C XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null || \
-$SUDO iptables -t nat -A XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN
-
-# Redirect OUTPUT
-if [ "$IS_ROUTER" = true ]; then
-  # Router-like system
-  echo "Detected Entware/OpenWRT environment."
-  $SUDO iptables -t nat -C OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null || \
-  $SUDO iptables -t nat -A OUTPUT -p tcp -j XRAY_REDIRECT
-else
-  # Non-router system
-  echo "Detected standard Linux system."
-  $SUDO iptables -t nat -C OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null || \
-  $SUDO iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
-fi
-
-sleep 1
-
-if [ "$XRAY_UID" -eq "$CALLER_UID" ]; then
-  printf "${YELLOW}Xray and connectivity test run under the same user: $XRAY_USER, UID $CALLER_UID.${NC}\n"
-  printf "${YELLOW}Traffic will not be redirected through Xray to avoid the inifinite loop. You won't see logs.${NC}\n"
-  sleep 1
-fi
+# === CLEANUP FUNCTION ===
+cleanup() {
+  remove_output_redirect
+}
+trap cleanup EXIT
 
 # === CLEAR LOGS & SHOW IPTABLES ===
 echo ""
@@ -85,18 +61,14 @@ $SUDO truncate -s 0 /opt/var/log/xray-error.log 2>/dev/null
 echo ""
 echo "Checking iptables OUTPUT and PREROUTING rules before test..."
 echo "--- OUTPUT chain:"
-$SUDO iptables -t nat -L OUTPUT -n --line-numbers | grep -E "XRAY_REDIRECT|RETURN" || echo "(none)"
-echo "Raw rule:" 
+$SUDO iptables -t nat -L OUTPUT -n --line-numbers | grep -E "XRAY_REDIRECT|RETURN|1081" || echo "(none)"
+echo "Raw rule:"
 $SUDO iptables-save -t nat | grep --color=auto -E '^-A OUTPUT' || echo "(none)"
 
 echo "--- PREROUTING chain:"
 $SUDO iptables -t nat -L PREROUTING -n --line-numbers | grep -E "XRAY_REDIRECT" || echo "(none)"
-echo "Raw rule:" 
+echo "Raw rule:"
 $SUDO iptables-save -t nat | grep --color=auto -E '^-A PREROUTING' | grep XRAY_REDIRECT || echo "(none)"
-
-
-# Extract first routed domain from config
-FIRST_DOMAIN=$(grep -oE '"domain:[^"]+"' "$CONFIG_FILE" | head -n1 | cut -d':' -f2 | tr -d '"')
 
 # Ensure dig is available
 if ! command -v dig >/dev/null 2>&1; then
@@ -107,23 +79,6 @@ fi
 sleep 1
 
 # === CONNECTIVITY TEST ===
-TARGET_DOMAIN="$FIRST_DOMAIN"
-IS_FULL_VPN=false
-
-if [ -z "$TARGET_DOMAIN" ]; then
-  TARGET_DOMAIN="www.google.com"
-  IS_FULL_VPN=true
-  echo "No routed domains found — assuming full VPN mode"
-fi
-
-echo ""
-echo "🌐 Testing general internet connectivity via https://www.google.com..."
-GOOGLE_STATUS=$(curl -4 -s -o /dev/null -w "%{http_code}" https://www.google.com)
-if [ "$GOOGLE_STATUS" = "200" ]; then
-  echo "Internet connectivity is working. Google returned 200."
-else
-  printf "${RED}Google test failed. HTTP status: $GOOGLE_STATUS — possible DNS or tunnel issue.${NC}\n"
-fi
 
 echo ""
 echo "🌐 Testing routed domain: $TARGET_DOMAIN"
@@ -136,7 +91,7 @@ echo "Resolved domain IP: $RESOLVED_IP"
 echo "HTTP Status from $TARGET_DOMAIN: $RESPONSE"
 
 if [ "$RESPONSE" = "200" ]; then
-  echo "Traffic to $TARGET_DOMAIN succeeded."    
+  echo "Traffic to $TARGET_DOMAIN succeeded."
 
   sleep 1
 
@@ -148,21 +103,13 @@ if [ "$RESPONSE" = "200" ]; then
     VPN_IP=$(echo "$ROUTED_LOG" | grep "tunneling request" | awk '{print $NF}')
     if [ -n "$VPN_IP" ]; then
       CLEANED_VPN_IP=$(echo "$VPN_IP" | sed 's|/tcp:||')
-      printf "${GREEN}✅ VPN server IP used: %s${NC}" "$CLEANED_VPN_IP"
+      printf "${GREEN}✅ VPN server IP used: %s${NC}\n" "$CLEANED_VPN_IP"
     fi
   else
     printf "${YELLOW}Could not confirm routing via Xray client for $TARGET_DOMAIN.${NC}\n"
-    printf "${YELLOW}Try running the connectivity_test.sh separately with a different user than $XRAY_USER, UID $XRAY_UID.${NC}\n"
     echo "Check logs:"
     tail -n 10 "$XRAY_LOG"
   fi
 else
   printf "${RED}Unexpected response from $TARGET_DOMAIN. Please check routing/IPTables/Xray config.${NC}\n"
 fi
-
-# === CLEANUP ===
-cleanup() {
-  echo ""
-  remove_output_redirect
-}
-trap cleanup EXIT

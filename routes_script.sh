@@ -57,7 +57,6 @@ if ! is_route_all_enabled; then
     fi
   done
 
-DEVICE_RULE=""
   DEVICE_IP_LIST=""
   if [ "$ADD_DEVICE_IP" = "yes" ]; then
     while true; do
@@ -72,15 +71,12 @@ DEVICE_RULE=""
       IFS=','
 
       VALID=true
-      DEVICE_RULES=""
       DEVICE_IP_LIST=""
       IP_JSON_LIST=""
 
       for ip in $DEVICE_IPS_CLEAN; do
         CLEANED_IP=$(echo "$ip" | xargs)
         if echo "$CLEANED_IP" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
-          DEVICE_RULES="$DEVICE_RULES$SUDO iptables -t nat -A PREROUTING -s $CLEANED_IP -p tcp -j XRAY_REDIRECT\n"
-          DEVICE_RULES="$DEVICE_RULES$SUDO iptables -t nat -A PREROUTING -s $CLEANED_IP -p udp -j XRAY_REDIRECT\n"
           DEVICE_IP_LIST="$DEVICE_IP_LIST$CLEANED_IP "
           IP_JSON_LIST="$IP_JSON_LIST\"$CLEANED_IP\","
         else
@@ -93,8 +89,6 @@ DEVICE_RULE=""
       IFS="$OLD_IFS"
 
       if [ "$VALID" = true ]; then
-        DEVICE_RULE=$(printf "%s" "$DEVICE_RULES")
-
         # Remove trailing comma from IP list for JSON
         IP_JSON_LIST=$(echo "$IP_JSON_LIST" | sed 's/,$//')
 
@@ -154,7 +148,6 @@ LAN_IFACE=$(detect_lan_interface)
   echo "$SUDO iptables -t nat -C PREROUTING -i $LAN_IFACE -p udp -j XRAY_REDIRECT 2>/dev/null || \\"
   echo "$SUDO iptables -t nat -A PREROUTING -i $LAN_IFACE -p udp -j XRAY_REDIRECT"
   echo ""
-  echo "$DEVICE_RULE"
 } | $SUDO tee "$ROUTES_FILE" > /dev/null
 
 $SUDO chmod +x "$ROUTES_FILE"

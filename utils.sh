@@ -105,34 +105,13 @@ remove_prerouting_redirect() {
   $SUDO iptables -t nat -F XRAY_REDIRECT 2>/dev/null
   $SUDO iptables -t nat -X XRAY_REDIRECT 2>/dev/null
 
-  $SUDO iptables -t nat -D PREROUTING -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D PREROUTING -p tcp -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D PREROUTING -p udp -j XRAY_REDIRECT 2>/dev/null
   $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p tcp -j XRAY_REDIRECT 2>/dev/null
   $SUDO iptables -t nat -D PREROUTING -i "$LAN_IFACE" -p udp -j XRAY_REDIRECT 2>/dev/null
 
-  # Specific device IPs cleanup
-  $SUDO iptables-save -t nat | grep '^-A PREROUTING -s .* -j XRAY_REDIRECT' | while read -r rule; do
-    delete_rule=$(echo "$rule" | sed 's/^-A /-D /')
-    $SUDO iptables -t nat $delete_rule 2>/dev/null
-  done
 }
 
 remove_output_redirect() {
-  XRAY_UID=$(detect_xray_uid)
-  if [ -z "$XRAY_UID" ]; then
-    printf "${RED}Failed to detect Xray UID. Is the client installed?${NC}\n"
-    pause
-    return
-  fi
-  LOCAL_IP=$(detect_local_ip)
-
   echo "Removing OUTPUT redirect rules..."
-  $SUDO iptables -t nat -D OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null
-  $SUDO iptables -t nat -D OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null
+  $SUDO iptables -t nat -D OUTPUT -p tcp --dport 443 -j RETURN 2>/dev/null
+  $SUDO iptables -t nat -D OUTPUT -p tcp -d $TARGET_DOMAIN -j REDIRECT --to-ports 1081 2>/dev/null
 }
