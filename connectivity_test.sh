@@ -89,31 +89,20 @@ echo "🌐 Testing routed domain: $TARGET_DOMAIN"
 echo "Resolving IP and checking connectivity..."
 
 RESOLVED_IP=$(dig +short "$TARGET_DOMAIN" | head -n1)
-#RESPONSE=$(curl -4 -s -L -o /dev/null -w "%{http_code}" "https://$TARGET_DOMAIN")
+echo "Resolved domain IP: $RESOLVED_IP"
 RESPONSE=$(curl https://$TARGET_DOMAIN)
 
-echo "Resolved domain IP: $RESOLVED_IP"
-#echo "HTTP Status from $TARGET_DOMAIN: $RESPONSE"
-
-#if [ "$RESPONSE" = "200" ]; then
-#  echo "Traffic to $TARGET_DOMAIN succeeded."
-#
-#  sleep 1
-
-  ROUTED_LOG=$(grep "$TARGET_DOMAIN" "$XRAY_LOG" | grep -E "detour|tunneling|default route|sniffed domain|opened to" | tail -n 10)
-  if echo "$ROUTED_LOG" | grep -q "vless-out"; then
-    printf "${GREEN}✅ Routing confirmed via 'vless-out':${NC}\n"
-    echo "$ROUTED_LOG"
-    VPN_IP=$(echo "$ROUTED_LOG" | grep "tunneling request" | awk '{print $NF}')
-    if [ -n "$VPN_IP" ]; then
-      CLEANED_VPN_IP=$(echo "$VPN_IP" | sed 's|/tcp:||')
-      printf "${GREEN}✅ VPN server IP used: %s${NC}\n" "$CLEANED_VPN_IP"
-    fi
-  else
-    printf "${YELLOW}Could not confirm routing via Xray client for $TARGET_DOMAIN.${NC}\n"
-    echo "Check logs:"
-    tail -n 10 "$XRAY_LOG"
+ROUTED_LOG=$(grep "$TARGET_DOMAIN" "$XRAY_LOG" | grep -E "detour|tunneling|default route|sniffed domain|opened to" | tail -n 10)
+if echo "$ROUTED_LOG" | grep -q "vless-out"; then
+  printf "${GREEN}✅ Routing confirmed via 'vless-out':${NC}\n"
+  echo "$ROUTED_LOG"
+  VPN_IP=$(echo "$ROUTED_LOG" | grep "tunneling request" | awk '{print $NF}')
+  if [ -n "$VPN_IP" ]; then
+    CLEANED_VPN_IP=$(echo "$VPN_IP" | sed 's|/tcp:||')
+    printf "${GREEN}✅ VPN server IP used: %s${NC}\n" "$CLEANED_VPN_IP"
   fi
-#else
-#  printf "${RED}Unexpected response from $TARGET_DOMAIN. Please check routing/IPTables/Xray config.${NC}\n"
-#fi
+else
+  printf "${YELLOW}Could not confirm routing via Xray client for $TARGET_DOMAIN.${NC}\n"
+  echo "Check logs:"
+  tail -n 10 "$XRAY_LOG"
+fi

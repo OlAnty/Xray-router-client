@@ -432,11 +432,12 @@ manage_output_redirect() {
       fi
 
       echo "Adding OUTPUT redirect for the target domain to dokodemo-door port 1081"
+      $SUDO iptables -t nat -C OUTPUT -p tcp -j REDIRECT --to-ports 1081 2>/dev/null || \
+      $SUDO iptables -t nat -A OUTPUT -p tcp -d $TARGET_DOMAIN -j REDIRECT --to-ports 1081
+      
       $SUDO iptables -t nat -C OUTPUT -p tcp --dport 443 -j RETURN 2>/dev/null || \
       $SUDO iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
 
-      $SUDO iptables -t nat -C OUTPUT -p tcp -j REDIRECT --to-ports 1081 2>/dev/null || \
-      $SUDO iptables -t nat -A OUTPUT -p tcp -d $TARGET_DOMAIN -j REDIRECT --to-ports 1081
       ;;
     2)
 
