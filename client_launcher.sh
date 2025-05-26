@@ -46,7 +46,7 @@ start() {
   else
     \$XRAY_BIN -config "\$CONFIG_FILE" &
   fi
-
+}
 
 stop() {
   echo "Trying to stop Xray client..."
