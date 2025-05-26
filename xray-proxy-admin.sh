@@ -306,6 +306,13 @@ manage_xray() {
     1)
       if [ -f "$CLIENT_SCRIPT" ]; then
         "$CLIENT_SCRIPT" start
+        sleep 1
+        remove_prerouting_redirect
+        sleep 1
+        if [ -f "$ROUTES_SCRIPT" ]; then
+          echo "Adding PREROUTING XRAY_REDIRECT rules..."
+          sh "$ROUTES_SCRIPT"
+        fi
       else
         printf "${RED}Client script not found.${NC}\n"
       fi
@@ -313,6 +320,8 @@ manage_xray() {
     2)
       if [ -f "$CLIENT_SCRIPT" ]; then
         "$CLIENT_SCRIPT" stop
+        sleep 1
+        remove_prerouting_redirect
       else
         printf "${RED}Client script not found.${NC}\n"
       fi
@@ -413,16 +422,8 @@ manage_output_redirect() {
   read outopt
   case "$outopt" in
     1)
-      XRAY_UID=$(detect_xray_uid)
-      if [ -z "$XRAY_UID" ]; then
-        printf "${RED}Failed to detect Xray UID. Is the client installed?${NC}\n"
-        pause
-        return
-      fi
-      LOCAL_IP=$(detect_local_ip)
-      IS_ROUTER=$(detect_router)
-
       # check if the chain exists
+      TARGET_DOMAIN="example.org"
       $SUDO iptables -t nat -L XRAY_REDIRECT >/dev/null 2>&1
       if [ $? -ne 0 ]; then
         echo "${RED}XRAY_REDIRECT chain is missing. Did you forget to start Xray?${NC}"
@@ -430,34 +431,12 @@ manage_output_redirect() {
         return
       fi
 
-      echo "Adding OUTPUT redirect..."
-      $SUDO iptables -t nat -C OUTPUT -d 127.0.0.1 -j RETURN 2>/dev/null || \
-      $SUDO iptables -t nat -I OUTPUT -d 127.0.0.1 -j RETURN
+      echo "Adding OUTPUT redirect for the target domain to dokodemo-door port 1081"
+      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 443 -j RETURN 2>/dev/null || \
+      $SUDO iptables -t nat -A OUTPUT -p tcp --dport 443 -j RETURN
 
-      # Skip dokodemo-door port
-      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 1081 -j RETURN 2>/dev/null || \
-      $SUDO iptables -t nat -A OUTPUT -p tcp --dport 1081 -j RETURN
-
-      # Exclude SSH ports first
-      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 22 -j RETURN 2>/dev/null || \
-      $SUDO iptables -t nat -I OUTPUT -p tcp --dport 22 -j RETURN
-
-      $SUDO iptables -t nat -C OUTPUT -p tcp --dport 222 -j RETURN 2>/dev/null || \
-      $SUDO iptables -t nat -I OUTPUT -p tcp --dport 222 -j RETURN
-
-      # Exclude local IP from XRAY_REDIRECT
-      $SUDO iptables -t nat -C XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN 2>/dev/null || \
-      $SUDO iptables -t nat -A XRAY_REDIRECT -d "$LOCAL_IP" -j RETURN
-
-      if [ "$IS_ROUTER" = true ]; then
-        $SUDO iptables -t nat -C OUTPUT -p tcp -j XRAY_REDIRECT 2>/dev/null || \
-        $SUDO iptables -t nat -A OUTPUT -p tcp -j XRAY_REDIRECT
-        printf "${GREEN}OUTPUT redirected. SSH & local IP excluded.${NC}"
-      else
-        $SUDO iptables -t nat -C OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT 2>/dev/null || \
-        $SUDO iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
-        printf "${GREEN}OUTPUT redirected for UID $XRAY_UID.  SSH & local IP excluded.${NC}"
-      fi
+      $SUDO iptables -t nat -C OUTPUT -p tcp -j REDIRECT --to-ports 1081 2>/dev/null || \
+      $SUDO iptables -t nat -A OUTPUT -p tcp -d $TARGET_DOMAIN -j REDIRECT --to-ports 1081
       ;;
     2)
 
@@ -477,37 +456,14 @@ run_connectivity_test() {
     printf "${RED}Failed to detect Xray UID. Is the client running?${NC}\n"
     return
   fi
+
   if [ ! -f "$SCRIPT_DIR/connectivity_test.sh" ]; then
-    echo "Script directory: $SCRIPT_DIR"
     printf "${RED}connectivity_test.sh not found.${NC}\n"
     pause
     return
   fi
 
-  if [ "$(uname)" = "Linux" ] && [ "$(id -u)" = "0" ]; then
-    echo "Available users:"
-    i=1
-    cut -d: -f1 /etc/passwd | grep -vE '^(root|nobody|daemon|bin)$' | while read user; do
-      printf "  %2d) %s\n" "$i" "$user"
-      i=$((i + 1))
-    done
-    printf "${CYAN}Enter a USER NAME to run test as (or press Enter to use root):${NC}\n "
-    read user_choice
-
-    if [ -n "$user_choice" ]; then
-      if id "$user_choice" >/dev/null 2>&1; then
-        sudo -u "$user_choice" sh "$SCRIPT_DIR/connectivity_test.sh"
-      else
-        printf "${RED}User not found.${NC}\n"
-      fi
-    else
-      sh "$SCRIPT_DIR/connectivity_test.sh"
-    fi
-  else
-    # On Entware or non-root environment, just run directly
-    sh "$SCRIPT_DIR/connectivity_test.sh"
-  fi
-
+  sh "$SCRIPT_DIR/connectivity_test.sh"
   pause
 }
 
