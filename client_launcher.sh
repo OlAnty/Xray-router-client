@@ -44,6 +44,7 @@ if ps aux >/dev/null 2>&1; then
 start() {
   echo "Starting Xray client..."
   get_xray_pids
+  sleep 1
   if [ -n "$XRAY_PIDS" ]; then
     echo "⚠️ Xray is already running. Use restart if needed."
   else
@@ -54,6 +55,7 @@ start() {
 stop() {
   echo "Trying to stop Xray client..."
   get_xray_pids
+  sleep 1
   if [ -n "\$XRAY_PIDS" ]; then
     for PID in \$XRAY_PIDS; do
       [ "\$PID" != "\$\$" ] && \$SUDO kill "\$PID" 2>/dev/null && echo "🔻 Killed xray process: \$PID"
