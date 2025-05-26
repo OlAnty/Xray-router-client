@@ -79,21 +79,9 @@ For example:
 ## Iptables behavior
 The proxy works by creating a custom `XRAY_REDIRECT` chain and adding:
 
-- PREROUTING rules for selected IPs or all LAN traffic
-- OUTPUT rules for UID-based redirection during the connectivity test
-
-If your router is actively used for SSH or other services, you need to manually exclude the Xray UID from iptables redirection to avoid routing loops.
-Add these rules after starting Xray:
-
-```sh
-# Avoid interfering with SSH sessions (ports 22, 222)
-iptables -t nat -A OUTPUT -p tcp --dport 22 -j RETURN
-iptables -t nat -A OUTPUT -p tcp --dport 222 -j RETURN
-```
-```sh
-XRAY_UID=$(ps -o uid= -p "$(pgrep -f '/opt/sbin/xray')" | tr -d ' ')
-iptables -t nat -A OUTPUT -p tcp -m owner ! --uid-owner "$XRAY_UID" -j XRAY_REDIRECT
-```
+- `PREROUTING` rules for LAN traffic to direct it to `XRAY_REDIRECT` chain.
+- `XRAY_REDIRECT` rules to redirect traffic to Xray dokodemo-door 1081 port. 
+- `OUTPUT` rules for 443 and 1081 ports during the connectivity test.
 
 ## Uninstallation
 Use menu option `1) Installation → 2) Uninstall Xray` to:
@@ -113,6 +101,7 @@ Use menu option `1) Installation → 2) Uninstall Xray` to:
 | client_launcher.sh      | Creates init.d Xray launcher           |
 | log_monitoring.sh       | Adds log + watchdog                    |
 | connectivity_test.sh    | Tests actual proxy traffic             |
+| utils.sh                | Utility functions                      |
 
 ## Disclaimer
 
