@@ -34,13 +34,16 @@ echo "🛠️ Creating Xray client launcher as UID: \$(id -u)"
 CONFIG_FILE="$CONFIG_FILE"
 XRAY_BIN="/opt/sbin/xray"
 
-start() {
-  echo "Starting Xray client..."
-  if ps aux >/dev/null 2>&1; then
+get_xray_pids() {
+if ps aux >/dev/null 2>&1; then
     XRAY_PIDS=\$(ps aux | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$2}')
   else
     XRAY_PIDS=\$(ps | grep "\${XRAY_BIN} -config \${CONFIG_FILE}" | grep -v grep | awk '{print \$1}')
   fi
+}
+start() {
+  echo "Starting Xray client..."
+  get_xray_pids
   if [ -n "$XRAY_PIDS" ]; then
     echo "⚠️ Xray is already running. Use restart if needed."
   else
@@ -50,12 +53,7 @@ start() {
 
 stop() {
   echo "Trying to stop Xray client..."
-  if ps aux >/dev/null 2>&1; then
-    XRAY_PIDS=\$(ps aux | grep '[o]pt/sbin/xray' | grep -v 'watchdog' | awk '{print \$2}')
-  else
-    XRAY_PIDS=\$(ps | grep '[x]ray' | grep -v 'watchdog' | awk '{print \$1}')
-  fi
-
+  get_xray_pids
   if [ -n "\$XRAY_PIDS" ]; then
     for PID in \$XRAY_PIDS; do
       [ "\$PID" != "\$\$" ] && \$SUDO kill "\$PID" 2>/dev/null && echo "🔻 Killed xray process: \$PID"
