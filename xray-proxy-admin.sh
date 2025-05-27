@@ -11,6 +11,7 @@ SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 . "$(dirname "$SCRIPT_PATH")/utils.sh"
+. "$(dirname "$SCRIPT_PATH")/generate_domains.sh"
 
 # Colors
 GREEN="\033[0;32m"
@@ -130,9 +131,18 @@ manage_config() {
 
 edit_routing_rules() {
   if [ ! -f "$CONFIG_FILE" ]; then
-    printf "${RED}Config not found. Please generate it first.${NC}\n"
+    printf "${RED}Config not found: $CONFIG_FILE${NC}\n"
+    echo "Is Xray installed and configured? Please generate the config first."
     pause
     return
+  fi
+
+  DOMAIN_FILE="/opt/etc/xray/custom_domains.txt"
+  if [ ! -f "$DOMAIN_FILE" ]; then
+    echo "Custom domain file not found: $DOMAIN_FILE"
+    echo "Let's create it..."
+    sleep 1
+    sh "$SCRIPT_DIR/generate_domains.sh"
   fi
 
   printf "${CYAN}\nRouting Rule Editor:${NC}\n"
@@ -162,9 +172,7 @@ edit_routing_rules() {
       skip {
         depth += gsub(/\[/, "[")
         depth -= gsub(/\]/, "]")
-        if (depth <= 0) {
-          skip=0
-        }
+        if (depth <= 0) { skip=0 }
         next
       }
       { print }
@@ -172,38 +180,21 @@ edit_routing_rules() {
 
       printf "${GREEN}Routing changed: all traffic will go through the VPN.${NC}\n"
       ;;
+
     2)
-      printf "${YELLOW}This will replace all existing routing rules with the new domain list.${NC}\n"
-      printf "Type '${CYAN}yes${NC}' to proceed: "
-      read confirm
-      if [ "$confirm" != "yes" ]; then
-        printf "${CYAN}Action cancelled. No changes were made.${NC}\n"
+      printf "📁 Domain list location: $DOMAIN_FILE\n"
+      printf "${CYAN}You will now edit this file. One domain per line, no 'www.' and 'https'.${NC}"
+      sleep 3
+      $SUDO nano "$DOMAIN_FILE"
+
+      NEW_DOMAINS=$(generate_domain_rules_from_file)
+      if [ -z "$NEW_DOMAINS" ]; then
+        printf "${RED}No valid domains found after editing. Aborting.${NC}\n"
         pause
         return
       fi
 
-      current_domains=$(grep -o '"domain:[^"]*"' "$CONFIG_FILE" | cut -d: -f2 | tr -d '"' | sort -u)
-      if [ -n "$current_domains" ]; then
-        printf "${GREEN}Current domains routed via VPN:${NC}\n"
-        echo "$current_domains" | sed 's/^/ - /'
-      else
-        printf "${YELLOW}No domains found. Starting fresh.${NC}\n"
-      fi
-
-      printf "\nEnter new comma-separated domains (e.g., youtube.com,instagram.com): "
-      read new_domains
-
-      CLEAN_DOMAINS=""
-      IFS=","
-      for domain in $new_domains; do
-        domain=$(echo "$domain" | sed 's/^ *//;s/ *$//')
-        CLEAN_DOMAINS="$CLEAN_DOMAINS\n          \"domain:$domain\",\n          \"domain:www.$domain\","
-      done
-      unset IFS
-
-      CLEAN_DOMAINS=$(echo "$CLEAN_DOMAINS" | sed '$ s/,$//')
-
-      awk -v rules="$CLEAN_DOMAINS" '
+      awk -v rules="$NEW_DOMAINS" '
       BEGIN { skip=0; depth=0 }
       /"rules": \[/ {
         print "    \"rules\": [\n      {\n        \"type\": \"field\",\n        \"domain\": [" rules "\n        ],\n        \"outboundTag\": \"vless-out\"\n      },\n      {\n        \"type\": \"field\",\n        \"network\": \"tcp,udp\",\n        \"outboundTag\": \"direct\"\n      }\n    ]";
@@ -212,20 +203,19 @@ edit_routing_rules() {
         next
       }
       skip {
-        # Track depth of brackets to detect end of rules block
         depth += gsub(/\[/, "[")
         depth -= gsub(/\]/, "]")
-        if (depth <= 0) {
-          skip=0
-        }
+        if (depth <= 0) { skip=0 }
         next
       }
       { print }
-      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
 
-
-      printf "${GREEN}Domain routing updated successfully.${NC}\n"
+      printf "\n✅ Routing rules updated successfully using domain list from:"
+      printf " $DOMAIN_FILE"
+      printf "\nNew config saved to: $CONFIG_FILE\n"
       ;;
+
     0)
       return
       ;;
@@ -235,6 +225,7 @@ edit_routing_rules() {
   esac
   pause
 }
+
 
 show_vless_config() {
   if [ -f "$CONFIG_FILE" ]; then

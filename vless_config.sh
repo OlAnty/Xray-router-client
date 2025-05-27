@@ -1,6 +1,11 @@
 #!/bin/sh
 # setup/vless_config.sh
 
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+. "$(dirname "$SCRIPT_PATH")/generate_domains.sh"
+
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" -ne 0 ]; then
   SUDO="sudo"
 else
@@ -11,6 +16,8 @@ set -e
 
 CONFIG_DIR="/opt/etc/xray"
 CONFIG_FILE="$CONFIG_DIR/vless.json"
+
+$SUDO mkdir -p "$CONFIG_DIR"
 
 echo ""
 echo "📦 Setting up VLESS + Reality configuration..."
@@ -49,25 +56,9 @@ ROUTE_ALL=$(echo "$ROUTE_ALL" | tr '[:upper:]' '[:lower:]')
 
 DOMAIN_RULES=""
 if [ "$ROUTE_ALL" != "yes" ]; then
-  read -p "🌐 Enter domains to route via VPN (e.g., youtube.com, comma-separated, no www/https): " DOMAINS_RAW
-
-  CLEAN_DOMAINS=""
-  OLD_IFS="$IFS"
-  IFS=','
-
-  for domain in $(echo "$DOMAINS_RAW" | sed 's/ *, */,/g'); do
-    domain=$(echo "$domain" | xargs)
-    CLEAN_DOMAINS="$CLEAN_DOMAINS \"domain:$domain\",\"domain:www.$domain\","
-  done
-
-  IFS="$OLD_IFS"
-
-  # Remove trailing comma
-  DOMAIN_RULES=$(echo "$CLEAN_DOMAINS" | sed 's/,\s*$//')
+  add_domains_to_file
+  DOMAIN_RULES=$(generate_domain_rules_from_file)
 fi
-
-# Create config directory
-$SUDO mkdir -p "$CONFIG_DIR"
 
 # Build routing rules
 if [ "$ROUTE_ALL" = "yes" ]; then
@@ -187,13 +178,12 @@ if [ "$ROUTE_ALL" = "yes" ]; then
   echo "🌐 Routing: All traffic via VPN"
 else
   echo "🌐 Routing: Only selected domains:"
-  DOMAINS_RAW=$(echo "$DOMAINS_RAW" | sed 's/ *, */,/g' | tr ',' ' ')
-  for domain in $DOMAINS_RAW; do
+  while read -r domain; do
     domain=$(echo "$domain" | xargs)
-    echo "    - $domain"
-    echo "    - www.$domain"
-  done
+    [ -n "$domain" ] && echo "    - $domain" && echo "    - www.$domain"
+  done < "$DOMAIN_FILE"
 fi
+
 echo ""
 echo "You can edit this config manually: $CONFIG_FILE"
 echo "––––––––––––––––––––––––––––––––––––––––––––"
