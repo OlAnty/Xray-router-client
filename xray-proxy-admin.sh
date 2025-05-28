@@ -213,13 +213,11 @@ edit_routing_rules() {
       skip = 0
       depth = 0
     }
-    # Detect the start of "routing" block
     /"routing"[ \t]*:/ {
       skip = 1
       depth = 0
       next
     }
-    # Skip lines until we exit the "routing" block
     skip {
       depth += gsub(/\{/, "{")
       depth -= gsub(/\}/, "}")
