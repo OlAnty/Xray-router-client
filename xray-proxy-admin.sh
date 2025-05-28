@@ -203,21 +203,30 @@ edit_routing_rules() {
   IP_RULES=$(generate_ip_rules_from_file)
   NEW_ROUTING=$(generate_routing_block "$ROUTE_ALL" "$DOMAIN_RULES" "$IP_RULES")
 
-  # Replace full routing block
+  if [ -z "$NEW_ROUTING" ]; then
+    echo "❌ Error generating routing block. Aborting."
+    return 1
+  fi
+
   awk -v new_block="$NEW_ROUTING" '
-    BEGIN { routing=0; depth=0 }
-    /"routing": {/ { routing=1 }
-    routing {
+    BEGIN { skip = 0; depth = 0 }
+    index($0, "\"routing\": {") > 0 {
+      skip = 1
+      depth = 1
+      next
+    }
+    skip {
       depth += gsub(/\{/, "{")
       depth -= gsub(/\}/, "}")
-      if (depth == 0) {
-        routing=0
-        print new_block
-        next
+      if (depth <= 0) {
+        skip = 0
       }
       next
     }
     { print }
+    END {
+      print new_block
+    }
   ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
 
   printf "${GREEN}\n✅ Routing rules successfully updated in: $CONFIG_FILE${NC}\n"
