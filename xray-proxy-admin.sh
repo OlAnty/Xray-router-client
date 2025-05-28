@@ -209,30 +209,36 @@ edit_routing_rules() {
   fi
 
   awk -v new_block="$NEW_ROUTING" '
-    BEGIN {
+BEGIN {
+  skip = 0
+  depth = 0
+  replaced = 0
+}
+{
+
+  if (!skip && $0 ~ /"routing"[ \t]*:[ \t]*\{/) {
+    skip = 1
+    depth = gsub(/\{/, "{") - gsub(/\}/, "}")
+    replaced = 1
+    print new_block
+    next
+  }
+
+  
+  if (skip) {
+    depth += gsub(/\{/, "{")
+    depth -= gsub(/\}/, "}")
+    if (depth <= 0) {
       skip = 0
-      depth = 0
     }
-    /"routing"[ \t]*:/ {
-      skip = 1
-      depth = 0
-      next
-    }
-    skip {
-      depth += gsub(/\{/, "{")
-      depth -= gsub(/\}/, "}")
-      if (depth <= 0) {
-        skip = 0
-      }
-      next
-    }
-    # Print all other lines
-    { print }
-    
-    END {
-      print new_block
-    }
+    next
+  }
+
+  # Print all other lines
+  print
+}
 ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
 
 
   printf "${GREEN}\n✅ Routing rules successfully updated in: $CONFIG_FILE${NC}\n"
