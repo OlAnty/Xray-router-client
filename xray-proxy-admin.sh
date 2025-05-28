@@ -11,7 +11,7 @@ SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 . "$(dirname "$SCRIPT_PATH")/utils.sh"
-. "$(dirname "$SCRIPT_PATH")/generate_domains.sh"
+. "$(dirname "$SCRIPT_PATH")/config_generator.sh"
 
 # Colors
 GREEN="\033[0;32m"
@@ -138,21 +138,17 @@ edit_routing_rules() {
   fi
 
   DOMAIN_FILE="/opt/etc/xray/custom_domains.txt"
-  if [ ! -f "$DOMAIN_FILE" ]; then
-    echo "Custom domain file not found: $DOMAIN_FILE"
-    echo "Let's create it..."
-    sleep 1
-    sh "$SCRIPT_DIR/generate_domains.sh"
-  fi
+  IP_FILE="/opt/etc/xray/custom_ips.txt"
 
   printf "${CYAN}\nRouting Rule Editor:${NC}\n"
   printf "1) Route all traffic\n"
   printf "2) Edit specific domains\n"
+  printf "3) Edit specific IPs\n"
   printf "0) Back\n"
   read routeopt
   case "$routeopt" in
     1)
-      printf "${YELLOW}This will overwrite all domain-based rules and route ALL traffic through the VPN.${NC}\n"
+      printf "${YELLOW}This will overwrite all rules and route ALL traffic through the VPN.${NC}\n"
       printf "Type '${CYAN}yes${NC}' to proceed: "
       read confirm
       if [ "$confirm" != "yes" ]; then
@@ -160,60 +156,37 @@ edit_routing_rules() {
         pause
         return
       fi
-
-      awk '
-      BEGIN { skip=0; depth=0 }
-      /"rules": \[/ {
-        print "    \"rules\": [\n      {\n        \"type\": \"field\",\n        \"ip\": [\"0.0.0.0/0\", \"::/0\"],\n        \"outboundTag\": \"vless-out\"\n      }\n    ]";
-        skip=1
-        depth=1
-        next
-      }
-      skip {
-        depth += gsub(/\[/, "[")
-        depth -= gsub(/\]/, "]")
-        if (depth <= 0) { skip=0 }
-        next
-      }
-      { print }
-      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-
-      printf "${GREEN}Routing changed: all traffic will go through the VPN.${NC}\n"
+      ROUTE_ALL="yes"
       ;;
 
     2)
-      printf "📁 Domain list location: $DOMAIN_FILE\n"
-      printf "${CYAN}You will now edit this file. One domain per line, no 'www.' and 'https'.${NC}"
-      sleep 3
-      $SUDO nano "$DOMAIN_FILE"
-
-      NEW_DOMAINS=$(generate_domain_rules_from_file)
-      if [ -z "$NEW_DOMAINS" ]; then
-        printf "${RED}No valid domains found after editing. Aborting.${NC}\n"
-        pause
-        return
+      if [ ! -f "$DOMAIN_FILE" ]; then
+        echo "Custom domain file not found: $DOMAIN_FILE"
+        echo "Creating..."
+        sleep 1
+        add_domains_to_file
       fi
 
-      awk -v rules="$NEW_DOMAINS" '
-      BEGIN { skip=0; depth=0 }
-      /"rules": \[/ {
-        print "    \"rules\": [\n      {\n        \"type\": \"field\",\n        \"domain\": [" rules "\n        ],\n        \"outboundTag\": \"vless-out\"\n      },\n      {\n        \"type\": \"field\",\n        \"network\": \"tcp,udp\",\n        \"outboundTag\": \"direct\"\n      }\n    ]";
-        skip=1
-        depth=1
-        next
-      }
-      skip {
-        depth += gsub(/\[/, "[")
-        depth -= gsub(/\]/, "]")
-        if (depth <= 0) { skip=0 }
-        next
-      }
-      { print }
-      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+      printf "📁 Domain list location: $DOMAIN_FILE\n"
+      printf "${CYAN}You will now edit this file. One domain per line, no 'www.' and 'https'.${NC}\n"
+      sleep 2
+      $SUDO nano "$DOMAIN_FILE"
+      ROUTE_ALL="no"
+      ;;
 
-      printf "\n✅ Routing rules updated successfully using domain list from:"
-      printf " $DOMAIN_FILE"
-      printf "\nNew config saved to: $CONFIG_FILE\n"
+    3)
+      if [ ! -f "$IP_FILE" ]; then
+        echo "Custom IP file not found: $IP_FILE"
+        echo "Let's create it..."
+        sleep 1
+        add_ips_to_file
+      fi
+
+      printf "📁 IP list location: $IP_FILE\n"
+      printf "${CYAN}You will now edit this file. One IP per line (e.g., 192.168.1.55).${NC}\n"
+      sleep 2
+      $SUDO nano "$IP_FILE"
+      ROUTE_ALL="no"
       ;;
 
     0)
@@ -221,11 +194,35 @@ edit_routing_rules() {
       ;;
     *)
       printf "${RED}Invalid option.${NC}\n"
+      pause
+      return
       ;;
   esac
+
+  DOMAIN_RULES=$(generate_domain_rules_from_file)
+  IP_RULES=$(generate_ip_rules_from_file)
+  NEW_ROUTING=$(generate_routing_block "$ROUTE_ALL" "$DOMAIN_RULES" "$IP_RULES")
+
+  # Replace full routing block
+  awk -v new_block="$NEW_ROUTING" '
+    BEGIN { routing=0; depth=0 }
+    /"routing": {/ { routing=1 }
+    routing {
+      depth += gsub(/\{/, "{")
+      depth -= gsub(/\}/, "}")
+      if (depth == 0) {
+        routing=0
+        print new_block
+        next
+      }
+      next
+    }
+    { print }
+  ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
+  printf "${GREEN}\n✅ Routing rules successfully updated in: $CONFIG_FILE${NC}\n"
   pause
 }
-
 
 show_vless_config() {
   if [ -f "$CONFIG_FILE" ]; then

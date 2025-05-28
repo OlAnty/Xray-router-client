@@ -4,8 +4,7 @@
 SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
-. "$(dirname "$SCRIPT_PATH")/generate_domains.sh"
-. "$(dirname "$SCRIPT_PATH")/generate_ips.sh"
+. "$(dirname "$SCRIPT_PATH")/config_generator.sh"
 
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" -ne 0 ]; then
   SUDO="sudo"
@@ -88,58 +87,9 @@ if [ "$ROUTE_ALL" != "yes" ]; then
 fi
 
 # Build routing rules
-if [ "$ROUTE_ALL" = "yes" ]; then
-  ROUTING_BLOCK='
-  "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "ip": [
-          "0.0.0.0/0",
-          "::/0"
-        ],
-        "outboundTag": "vless-out"
-      }
-    ]
-  }'
-else
-  RULES_JSON=""
-
-  if [ -n "$DOMAIN_RULES" ]; then
-    RULES_JSON="$RULES_JSON{
-      \"type\": \"field\",
-      \"domain\": [
-        $DOMAIN_RULES
-      ],
-      \"outboundTag\": \"vless-out\"
-    },"
-  fi
-
-  if [ -n "$IP_RULES" ]; then
-    RULES_JSON="${RULES_JSON}
-  $IP_RULES,"
-  fi   
-
-  RULES_JSON="$RULES_JSON{
-    \"type\": \"field\",
-    \"network\": \"tcp,udp\",
-    \"outboundTag\": \"direct\"
-  }"
-
-  ROUTING_BLOCK=$(cat <<EOF
-  "routing": {
-    "domainStrategy": "AsIs",
-    "rules": [
-$RULES_JSON
-    ]
-  }
-EOF
-)
-fi
+ROUTING_BLOCK=$(generate_routing_block "$ROUTE_ALL" "$DOMAIN_RULES" "$IP_RULES")
 
 # Generate config file
-# cat <<EOF > "$CONFIG_FILE"
 cat <<EOF | $SUDO tee "$CONFIG_FILE" >/dev/null
 {
   "log": {
@@ -229,8 +179,6 @@ if [ -n "$IP_RULES" ]; then
     [ -n "$ip" ] && echo "    - $ip"
   done < "$IP_FILE"
 fi
-
-
 echo ""
 echo "You can edit this config manually: $CONFIG_FILE"
 echo "––––––––––––––––––––––––––––––––––––––––––––"
