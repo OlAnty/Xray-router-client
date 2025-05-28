@@ -176,7 +176,7 @@ edit_routing_rules() {
         next
       }
       { print }
-      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+      ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
 
       printf "${GREEN}Routing changed: all traffic will go through the VPN.${NC}\n"
       ;;

@@ -5,6 +5,7 @@ SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 . "$(dirname "$SCRIPT_PATH")/generate_domains.sh"
+. "$(dirname "$SCRIPT_PATH")/generate_ips.sh"
 
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" -ne 0 ]; then
   SUDO="sudo"
@@ -60,6 +61,32 @@ if [ "$ROUTE_ALL" != "yes" ]; then
   DOMAIN_RULES=$(generate_domain_rules_from_file)
 fi
 
+IP_RULES=""
+if [ "$ROUTE_ALL" != "yes" ]; then
+  echo ""
+  while true; do
+    echo "💡 Do you want to add specific device IPs (e.g., smart TVs, consoles) to route via VPN?"
+    echo "  1. Yes"
+    echo "  2. No (skip)"
+    read -p "Enter your choice (1 or 2): " IP_CHOICE
+
+    case "$IP_CHOICE" in
+      1)
+        add_ips_to_file
+        IP_RULES=$(generate_ip_rules_from_file)
+        break
+        ;;
+      2)
+        echo "📛 Skipping device-specific IP routing."
+        break
+        ;;
+      *)
+        echo "Invalid choice. Please enter 1 or 2."
+        ;;
+    esac
+  done
+fi
+
 # Build routing rules
 if [ "$ROUTE_ALL" = "yes" ]; then
   ROUTING_BLOCK='
@@ -77,22 +104,34 @@ if [ "$ROUTE_ALL" = "yes" ]; then
     ]
   }'
 else
+  RULES_JSON=""
+
+  if [ -n "$DOMAIN_RULES" ]; then
+    RULES_JSON="$RULES_JSON{
+      \"type\": \"field\",
+      \"domain\": [
+        $DOMAIN_RULES
+      ],
+      \"outboundTag\": \"vless-out\"
+    },"
+  fi
+
+  if [ -n "$IP_RULES" ]; then
+    RULES_JSON="${RULES_JSON}
+  $IP_RULES,"
+  fi   
+
+  RULES_JSON="$RULES_JSON{
+    \"type\": \"field\",
+    \"network\": \"tcp,udp\",
+    \"outboundTag\": \"direct\"
+  }"
+
   ROUTING_BLOCK=$(cat <<EOF
   "routing": {
     "domainStrategy": "AsIs",
     "rules": [
-      {
-        "type": "field",
-        "domain": [
-          $DOMAIN_RULES
-        ],
-        "outboundTag": "vless-out"
-      },
-      {
-        "type": "field",
-        "network": "tcp,udp",
-        "outboundTag": "direct"
-      }
+$RULES_JSON
     ]
   }
 EOF
@@ -177,12 +216,20 @@ echo "    - Short ID: $SHORT_ID"
 if [ "$ROUTE_ALL" = "yes" ]; then
   echo "🌐 Routing: All traffic via VPN"
 else
-  echo "🌐 Routing: Only selected domains:"
+  echo "🌐 Routing only selected domains:"
   while read -r domain; do
     domain=$(echo "$domain" | xargs)
     [ -n "$domain" ] && echo "    - $domain" && echo "    - www.$domain"
   done < "$DOMAIN_FILE"
 fi
+if [ -n "$IP_RULES" ]; then
+  echo "💻 Device IPs routed via VPN:"
+  while read -r ip; do
+    ip=$(echo "$ip" | xargs)
+    [ -n "$ip" ] && echo "    - $ip"
+  done < "$IP_FILE"
+fi
+
 
 echo ""
 echo "You can edit this config manually: $CONFIG_FILE"
