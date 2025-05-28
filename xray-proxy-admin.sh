@@ -231,7 +231,6 @@ edit_routing_rules() {
     # Print all other lines
     { print }
     
-    # At the very end, print new routing block
     END {
       print new_block
     }
