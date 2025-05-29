@@ -139,7 +139,7 @@ generate_ip_rules_from_file() {
   cat <<EOF
     {
       "type": "field",
-      "ip": [
+      "source": [
         $IP_LIST
       ],
       "outboundTag": "vless-out"
