@@ -177,7 +177,7 @@ edit_routing_rules() {
     3)
       if [ ! -f "$IP_FILE" ]; then
         echo "Custom IP file not found: $IP_FILE"
-        echo "Let's create it..."
+        echo "Creating..."
         sleep 1
         add_ips_to_file
       fi
@@ -238,8 +238,6 @@ BEGIN {
   print
 }
 ' "$CONFIG_FILE" | $SUDO tee "${CONFIG_FILE}.tmp" >/dev/null && $SUDO mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-
-
 
   printf "${GREEN}\n✅ Routing rules successfully updated in: $CONFIG_FILE${NC}\n"
   pause

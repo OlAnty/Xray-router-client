@@ -136,6 +136,11 @@ generate_ip_rules_from_file() {
 
   IP_LIST=$(echo "$IP_LIST" | sed 's/,\s*$//')
 
+  if [ -z "$IP_LIST" ]; then
+    echo "ℹ️ No valid IPs found. Skipping ip rule generation."
+    return 0
+  fi
+
   cat <<EOF
     {
       "type": "field",
