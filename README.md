@@ -88,23 +88,9 @@ Use menu option `1) Installation → 2) Uninstall Xray` to:
 
 - Stop all proxy and watchdog processes
 - Remove iptables rules
-- Delete init.d scripts and config files
-
-## Included Files
-| Script Name             | Purpose                                |
-|------------------------|----------------------------------------|
-| xray-proxy-admin.sh     | Main admin interface                   |
-| install_all.sh          | Orchestrates full setup                |
-| dependencies.sh         | Installs needed packages               |
-| vless_config.sh         | Builds VLESS config                    |
-| routes_script.sh        | Adds PREROUTING firewall rules         |
-| client_launcher.sh      | Creates init.d Xray launcher           |
-| log_monitoring.sh       | Adds log + watchdog                    |
-| connectivity_test.sh    | Tests actual proxy traffic             |
-| utils.sh                | Utility functions                      |
+- Delete init.d scripts and config
 
 ## Disclaimer
-
 > This tool modifies system-level iptables and adds startup scripts.
 > Ensure you fully understand its effects before deploying on production routers.
 
