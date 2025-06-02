@@ -15,6 +15,7 @@ set -e
 LOG_DIR="/opt/var/log"
 INIT_DIR="/opt/etc/init.d"
 LOG_LIMIT_SCRIPT="$INIT_DIR/S99xray-loglimit"
+ROUTES_SCRIPT="$INIT_DIR/S99xray-routes"
 WATCHDOG_SCRIPT="$INIT_DIR/S99xray-watchdog"
 FILES="xray-access.log xray-error.log"
 MAX_SIZE=512000
@@ -66,6 +67,14 @@ done
 # Background loop to call the log limiter every 60 seconds
   while true; do
     \$LOG_LIMIT_SCRIPT
+
+      # Check if any PREROUTING rule points to XRAY_REDIRECT
+    if ! iptables -t nat -S PREROUTING | grep -q 'XRAY_REDIRECT'; then
+      logger -t xray-watchdog "⚠️ PREROUTING rules missing — restoring now"
+      echo "\$(date) — restoring PREROUTING rules" >> /opt/var/log/xray-prerouting-resets.log
+      \$ROUTES_SCRIPT start
+    fi
+
     sleep 60
   done
 
