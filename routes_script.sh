@@ -45,6 +45,7 @@ LAN_IFACE=$(detect_lan_interface)
 # Generate route script
 {
   echo '#!/bin/sh'
+  echo 'echo "Applying PREROUTING rules..."'
   echo ""
   echo 'case "$1" in'
   echo '  start|"")'
@@ -69,6 +70,7 @@ LAN_IFACE=$(detect_lan_interface)
   echo "    ;;"
   echo "esac"
   echo ""
+  echo 'echo "PREROUTING rules are all set"'
 } | $SUDO tee "$ROUTES_FILE" > /dev/null
 
 $SUDO chmod +x "$ROUTES_FILE"

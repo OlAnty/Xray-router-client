@@ -49,6 +49,7 @@ cat <<EOF | $SUDO tee "$WATCHDOG_SCRIPT" > /dev/null
 #!/bin/sh
 
 LOG_LIMIT_SCRIPT="$LOG_LIMIT_SCRIPT"
+ROUTES_SCRIPT="$ROUTES_SCRIPT"
 SUDO="$SUDO"
 
 if ps aux >/dev/null 2>&1; then
@@ -68,11 +69,10 @@ done
   while true; do
     \$LOG_LIMIT_SCRIPT
 
-      # Check if any PREROUTING rule points to XRAY_REDIRECT
     if ! iptables -t nat -S PREROUTING | grep -q 'XRAY_REDIRECT'; then
       logger -t xray-watchdog "⚠️ PREROUTING rules missing — restoring now"
       echo "\$(date) — restoring PREROUTING rules" >> /opt/var/log/xray-prerouting-resets.log
-      \$ROUTES_SCRIPT start
+      sh "\$ROUTES_SCRIPT" start
     fi
 
     sleep 60
